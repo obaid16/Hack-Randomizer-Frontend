@@ -1,0 +1,158 @@
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=Space+Grotesk:wght@500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --font-sans: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+  --font-display: 'Space Grotesk', var(--font-sans);
+  --font-mono: 'JetBrains Mono', monospace;
+
+  /* Strict User-Specified Editorial Light Theme Tokens */
+  --bg-canvas: #F7F7F4;
+  --bg-surface: #FFFFFF;
+  --text-primary: #20211F;
+  --text-secondary: #74756F;
+  --border-color: #E5E5DF;
+  --primary-accent: #5B5BD6;
+  --accent-hover: #4949B8;
+  --success-color: #277A55;
+  --subtle-highlight: #F0F0FF;
+
+  /* Role-specific editorial tints */
+  --sy-tag: #5B5BD6;
+  --sy-bg: #F0F0FF;
+  --fy-tag: #475569;
+  --fy-bg: #F1F5F9;
+  --mentor-tag: #92400E;
+  --mentor-bg: #FEF3C7;
+  --mentor-border: #FDE68A;
+
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 14px;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html, body {
+  background-color: var(--bg-canvas);
+  color: var(--text-primary);
+  font-family: var(--font-sans);
+  letter-spacing: -0.01em;
+  min-height: 100vh;
+  margin: 0;
+  padding: 0;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Typography Helpers */
+.font-display {
+  font-family: var(--font-display);
+  letter-spacing: -0.03em;
+}
+
+.font-mono {
+  font-family: var(--font-mono);
+}
+
+/* Container */
+.app-container {
+  max-width: 1240px;
+  margin: 0 auto;
+  padding: 0 1.5rem;
+}
+
+@media (max-width: 640px) {
+  .app-container {
+    padding: 0 1rem;
+  }
+}
+
+/* Base Card Style */
+.team-card-base {
+  background: var(--bg-surface);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-lg);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.02), 0 4px 12px rgba(0, 0, 0, 0.03);
+  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.team-card-base.active-team {
+  border-color: var(--primary-accent);
+  box-shadow: 0 0 0 1px var(--primary-accent), 0 8px 24px rgba(91, 91, 214, 0.08);
+}
+
+.team-card-base.completed-team {
+  border-color: #D1D5DB;
+}
+
+/* Member Reveal Slot Base */
+.slot-container {
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  background: #FCFCFA;
+  transition: all 0.2s ease;
+  position: relative;
+  overflow: hidden;
+}
+
+.slot-container.active-target {
+  border-color: var(--primary-accent);
+  background: #FFFFFF;
+  box-shadow: 0 0 0 1.5px rgba(91, 91, 214, 0.25);
+  cursor: pointer;
+}
+
+.slot-container.revealed-slot {
+  background: #FFFFFF;
+  border-color: #E2E8F0;
+}
+
+.slot-container.mentor-slot {
+  border-left: 3px solid #D97706;
+}
+
+/* Mechanical reveal tape strip */
+.mechanical-strip {
+  position: relative;
+  overflow: hidden;
+  height: 2.25rem;
+  display: flex;
+  align-items: center;
+}
+
+/* Print Friendly Styles */
+@media print {
+  body {
+    background: #FFFFFF !important;
+    color: #000000 !important;
+  }
+
+  header, .draw-controls, .hero-actions, .no-print {
+    display: none !important;
+  }
+
+  .app-container {
+    max-width: 100% !important;
+    padding: 0 !important;
+  }
+
+  .team-card-base {
+    break-inside: avoid;
+    box-shadow: none !important;
+    border: 1px solid #999999 !important;
+    margin-bottom: 1.5rem !important;
+  }
+
+  .print-header {
+    display: block !important;
+    margin-bottom: 2rem;
+    padding-bottom: 1rem;
+    border-bottom: 2px solid #000000;
+  }
+}

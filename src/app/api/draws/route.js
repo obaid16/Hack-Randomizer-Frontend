@@ -13,9 +13,9 @@ export async function GET() {
     return NextResponse.json(
       {
         success: false,
-        message: err.message || 'Failed to fetch saved draws.'
+        message: err.message || 'Database unavailable. Failed to fetch saved draws.'
       },
-      { status: 500 }
+      { status: 503 }
     );
   }
 }
@@ -31,12 +31,17 @@ export async function POST(request) {
       message: 'Draw saved successfully.'
     });
   } catch (err) {
+    const isDbError =
+      err.message?.includes('MongoDB') ||
+      err.message?.includes('connection') ||
+      err.message?.includes('database') ||
+      err.message?.includes('MONGODB_URI');
     return NextResponse.json(
       {
         success: false,
         message: err.message || 'Failed to save draw record.'
       },
-      { status: 400 }
+      { status: isDbError ? 503 : 400 }
     );
   }
 }

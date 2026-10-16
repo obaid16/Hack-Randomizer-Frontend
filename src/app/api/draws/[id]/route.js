@@ -20,9 +20,14 @@ export async function GET(request, context) {
       storage: result.storage
     });
   } catch (err) {
+    const isDbError =
+      err.message?.includes('MongoDB') ||
+      err.message?.includes('connection') ||
+      err.message?.includes('database') ||
+      err.message?.includes('MONGODB_URI');
     return NextResponse.json(
-      { success: false, message: err.message || 'Failed to retrieve draw.' },
-      { status: 500 }
+      { success: false, message: err.message || 'Failed to retrieve draw from database.' },
+      { status: isDbError ? 503 : 500 }
     );
   }
 }
@@ -40,9 +45,14 @@ export async function PATCH(request, context) {
       message: 'Draw updated successfully.'
     });
   } catch (err) {
+    const isDbError =
+      err.message?.includes('MongoDB') ||
+      err.message?.includes('connection') ||
+      err.message?.includes('database') ||
+      err.message?.includes('MONGODB_URI');
     return NextResponse.json(
-      { success: false, message: err.message || 'Failed to update draw.' },
-      { status: 400 }
+      { success: false, message: err.message || 'Failed to update draw in database.' },
+      { status: isDbError ? 503 : 400 }
     );
   }
 }

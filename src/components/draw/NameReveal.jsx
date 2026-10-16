@@ -27,8 +27,8 @@ export default function NameReveal({
   onAnimationComplete = null,
   isPresentation = false
 }) {
-  const [animating, setAnimating] = useState(false);
-  const [displayedName, setDisplayedName] = useState(revealed ? name : '');
+  // Phased state machine: 'concealed' | 'rolling' | 'locked'
+  const [status, setStatus] = useState(() => (revealed ? 'locked' : 'concealed'));
   const [justLocked, setJustLocked] = useState(false);
   const prevRevealedRef = useRef(revealed);
 
@@ -36,6 +36,21 @@ export default function NameReveal({
   const slotHeight = isPresentation ? 44 : 34;
   const TOTAL_DURATION_SEC = 2.4; // 2.4s of authentic counter game spin
   const TOTAL_DURATION_MS = TOTAL_DURATION_SEC * 1000;
+
+  // Synchronous phase transition during render:
+  // If revealed transitions from false to true, immediately switch to 'rolling'.
+  // This guarantees zero single-frame flash of the final name before the reel spins!
+  if (!prevRevealedRef.current && revealed) {
+    prevRevealedRef.current = true;
+    if (status !== 'rolling' && status !== 'locked') {
+      setStatus('rolling');
+    }
+  } else if (prevRevealedRef.current && !revealed) {
+    prevRevealedRef.current = false;
+    if (status !== 'concealed') {
+      setStatus('concealed');
+    }
+  }
 
   // Generate an authentic 18-item reel of candidate names from the roster
   const reelItems = useMemo(() => {
@@ -60,10 +75,7 @@ export default function NameReveal({
   }, [name, role]);
 
   useEffect(() => {
-    // Detect trigger: concealed -> revealed
-    if (!prevRevealedRef.current && revealed) {
-      prevRevealedRef.current = true;
-      setAnimating(true);
+    if (status === 'rolling') {
       setJustLocked(false);
 
       // Play decelerating mechanical ratchet clicks as the reel spins
@@ -78,8 +90,7 @@ export default function NameReveal({
 
       // Reel settles and locks into place
       const lockTimer = setTimeout(() => {
-        setDisplayedName(name);
-        setAnimating(false);
+        setStatus('locked');
         setJustLocked(true);
         playLockChime();
 
@@ -94,13 +105,8 @@ export default function NameReveal({
         tickTimers.forEach(clearTimeout);
         clearTimeout(lockTimer);
       };
-    } else if (!revealed) {
-      prevRevealedRef.current = false;
-      setDisplayedName('');
-      setAnimating(false);
-      setJustLocked(false);
     }
-  }, [revealed, name, TOTAL_DURATION_MS, onAnimationComplete]);
+  }, [status, TOTAL_DURATION_MS, onAnimationComplete]);
 
   return (
     <div
@@ -109,7 +115,7 @@ export default function NameReveal({
       } flex items-center rounded-lg`}
     >
       {/* 1. Concealed State (Before Trigger) */}
-      {!revealed && !animating && (
+      {status === 'concealed' && (
         <div className="flex items-center justify-between w-full text-secondaryText text-xs font-mono px-1">
           <div className="flex items-center gap-1.5">
             <span className="inline-block w-1.5 h-1.5 rounded-full bg-slate-300 animate-pulse" />
@@ -130,7 +136,7 @@ export default function NameReveal({
       )}
 
       {/* 2. Authentic Mechanical Slot Reel Spinner */}
-      {animating && (
+      {status === 'rolling' && (
         <div className="w-full h-full relative overflow-hidden bg-slate-900/90 rounded-md border border-slate-700 shadow-inner px-2">
           {/* Slot Machine 3D Cylinder Depth Shadows */}
           <div className="absolute inset-x-0 top-0 h-3 bg-gradient-to-b from-black/80 via-black/40 to-transparent z-20 pointer-events-none" />
@@ -175,7 +181,7 @@ export default function NameReveal({
       )}
 
       {/* 3. Revealed Final State with Celebration Micro-Animation */}
-      {revealed && !animating && (
+      {status === 'locked' && (
         <motion.div
           initial={{ opacity: 0.5, scale: 0.95 }}
           animate={{
@@ -193,9 +199,9 @@ export default function NameReveal({
                 ? 'text-xs sm:text-sm text-mentor-DEFAULT font-bold'
                 : 'text-xs sm:text-sm text-primaryText'
             }`}
-            title={displayedName || name}
+            title={name}
           >
-            {displayedName || name}
+            {name}
           </span>
 
           <motion.span

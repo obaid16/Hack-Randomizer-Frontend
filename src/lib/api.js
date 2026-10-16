@@ -243,3 +243,20 @@ export const generationsApi = {
     window.URL.revokeObjectURL(downloadUrl);
   }
 };
+
+// Event Draws Service (Persistent Event Portal Engine)
+export const drawsApi = {
+  getAll: () => request('/api/draws'),
+  getById: (id) => request(`/api/draws/${id}`),
+  save: (drawData) =>
+    request('/api/draws', {
+      method: 'POST',
+      body: JSON.stringify(drawData)
+    }),
+  update: (id, updates) =>
+    request(`/api/draws/${id}`, {
+      method: 'PATCH',
+      body: JSON.stringify(updates)
+    })
+};
+

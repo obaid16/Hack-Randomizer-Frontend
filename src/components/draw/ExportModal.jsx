@@ -1,11 +1,12 @@
 'use client';
 
 import { useState } from 'react';
-import { Download, X, ShieldAlert, FileText, CheckCircle2 } from 'lucide-react';
-import { exportTeamsToCSV } from '@/lib/exportTeams';
+import { FileText, X, Download, ShieldCheck, Eye } from 'lucide-react';
+import { exportTeamsToPDF } from '@/lib/exportPdf';
 
 /**
- * Modal to select between safe revealed export or full organizer export.
+ * PDF-Only Export Modal.
+ * Exports official hackathon team allocations in clean PDF format only.
  */
 export default function ExportModal({
   isOpen = false,
@@ -13,12 +14,12 @@ export default function ExportModal({
   unassigned = {},
   onClose
 }) {
-  const [exportMode, setExportMode] = useState('revealed-only');
+  const [exportMode, setExportMode] = useState('full-roster');
 
   if (!isOpen) return null;
 
   const handleExport = () => {
-    exportTeamsToCSV(teams, unassigned, exportMode);
+    exportTeamsToPDF(teams, unassigned, exportMode);
     onClose();
   };
 
@@ -33,59 +34,28 @@ export default function ExportModal({
       >
         <div className="flex items-center justify-between pb-3 mb-4 border-b border-border">
           <div className="flex items-center gap-2 text-primaryText">
-            <Download size={18} className="text-accent" />
+            <FileText size={18} className="text-accent" />
             <h3 className="font-display font-bold text-base">
-              Export Hackathon Team Roster
+              Export Hackathon Team Roster (PDF)
             </h3>
           </div>
           <button
             type="button"
             onClick={onClose}
-            className="text-secondaryText hover:text-primaryText p-1 rounded"
+            className="text-secondaryText hover:text-primaryText p-1 rounded cursor-pointer"
           >
             <X size={16} />
           </button>
         </div>
 
         <p className="text-xs text-secondaryText mb-5 leading-relaxed">
-          Select an export format depending on whether you want to preserve suspense for participants or need the complete master roster for event administration.
+          Generates an official, publication-ready PDF document formatted for college event administration and screen presentation.
         </p>
 
-        {/* Option 1: Revealed Only */}
-        <label
-          onClick={() => setExportMode('revealed-only')}
-          className={`flex items-start gap-3 p-3.5 rounded-lg border mb-3 cursor-pointer transition-all ${
-            exportMode === 'revealed-only'
-              ? 'bg-accent-subtle/50 border-accent ring-1 ring-accent/30'
-              : 'bg-canvas border-border hover:border-slate-300'
-          }`}
-        >
-          <input
-            type="radio"
-            name="exportMode"
-            checked={exportMode === 'revealed-only'}
-            onChange={() => setExportMode('revealed-only')}
-            className="mt-1 text-accent focus:ring-accent"
-          />
-          <div>
-            <div className="flex items-center gap-2">
-              <span className="font-bold text-xs text-primaryText">
-                Export Revealed Members Only (Public Safe)
-              </span>
-              <span className="text-[10px] font-mono uppercase bg-emerald-100 text-emerald-800 px-1.5 py-0.2 rounded font-semibold">
-                Recommended for Screen
-              </span>
-            </div>
-            <p className="text-[11px] text-secondaryText mt-0.5">
-              Only names revealed so far will be included. Unrevealed slots are marked as <code>[Concealed]</code> so no unannounced names leak.
-            </p>
-          </div>
-        </label>
-
-        {/* Option 2: Full Master Roster */}
+        {/* Option 1: Full Master Roster (Default) */}
         <label
           onClick={() => setExportMode('full-roster')}
-          className={`flex items-start gap-3 p-3.5 rounded-lg border mb-6 cursor-pointer transition-all ${
+          className={`flex items-start gap-3 p-3.5 rounded-lg border mb-3 cursor-pointer transition-all ${
             exportMode === 'full-roster'
               ? 'bg-accent-subtle/50 border-accent ring-1 ring-accent/30'
               : 'bg-canvas border-border hover:border-slate-300'
@@ -101,14 +71,45 @@ export default function ExportModal({
           <div>
             <div className="flex items-center gap-2">
               <span className="font-bold text-xs text-primaryText">
-                Export Complete Master Roster (Organizer View)
+                Complete Master Roster (Official PDF)
               </span>
-              <span className="text-[10px] font-mono uppercase bg-amber-100 text-amber-800 px-1.5 py-0.2 rounded font-semibold">
-                Internal Only
+              <span className="text-[10px] font-mono uppercase bg-accent-subtle text-accent px-1.5 py-0.2 rounded font-semibold">
+                Recommended
               </span>
             </div>
             <p className="text-[11px] text-secondaryText mt-0.5">
-              Exports all {teams.length} generated teams with all members, including names that haven&apos;t been revealed yet.
+              Includes all {teams.length} generated teams with leaders, core members, assigned mentors, and unassigned participants.
+            </p>
+          </div>
+        </label>
+
+        {/* Option 2: Revealed Only */}
+        <label
+          onClick={() => setExportMode('revealed-only')}
+          className={`flex items-start gap-3 p-3.5 rounded-lg border mb-6 cursor-pointer transition-all ${
+            exportMode === 'revealed-only'
+              ? 'bg-accent-subtle/50 border-accent ring-1 ring-accent/30'
+              : 'bg-canvas border-border hover:border-slate-300'
+          }`}
+        >
+          <input
+            type="radio"
+            name="exportMode"
+            checked={exportMode === 'revealed-only'}
+            onChange={() => setExportMode('revealed-only')}
+            className="mt-1 text-accent focus:ring-accent"
+          />
+          <div>
+            <div className="flex items-center gap-2">
+              <span className="font-bold text-xs text-primaryText">
+                Revealed Members Only (Broadcast PDF)
+              </span>
+              <span className="text-[10px] font-mono uppercase bg-emerald-100 text-emerald-800 px-1.5 py-0.2 rounded font-semibold">
+                Public Safe
+              </span>
+            </div>
+            <p className="text-[11px] text-secondaryText mt-0.5">
+              Only names revealed so far appear. Unrevealed slots remain masked as <code>[Concealed]</code> so no unannounced names leak.
             </p>
           </div>
         </label>
@@ -127,7 +128,7 @@ export default function ExportModal({
             className="px-5 py-2 rounded-lg bg-accent hover:bg-accent-hover text-white text-xs font-semibold transition-colors cursor-pointer shadow-xs inline-flex items-center gap-2"
           >
             <Download size={14} />
-            <span>Download CSV</span>
+            <span>Download PDF</span>
           </button>
         </div>
       </div>

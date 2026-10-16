@@ -12,7 +12,10 @@ export default function CompletionCelebration({
   totalTeams = 0,
   onOpenExport,
   onPrint,
-  onReset
+  onReset,
+  onSaveDraw = null,
+  isSaved = false,
+  isSaving = false
 }) {
   const canvasRef = useRef(null);
 
@@ -96,13 +99,43 @@ export default function CompletionCelebration({
         </p>
 
         <div className="flex flex-wrap items-center justify-center gap-3">
+          {onSaveDraw && (
+            <button
+              type="button"
+              onClick={onSaveDraw}
+              disabled={isSaving}
+              className={`px-5 py-2.5 rounded-lg text-xs sm:text-sm font-semibold transition-all inline-flex items-center gap-2 shadow-xs cursor-pointer ${
+                isSaved
+                  ? 'bg-emerald-50 text-emerald-800 border border-emerald-300 font-bold'
+                  : 'bg-indigo-600 hover:bg-indigo-700 text-white'
+              }`}
+            >
+              {isSaved ? (
+                <>
+                  <CheckCircle2 size={15} className="text-emerald-700" />
+                  <span>Saved to History</span>
+                </>
+              ) : isSaving ? (
+                <>
+                  <span className="w-3.5 h-3.5 rounded-full border-2 border-white border-t-transparent animate-spin" />
+                  <span>Saving...</span>
+                </>
+              ) : (
+                <>
+                  <CheckCircle2 size={15} />
+                  <span>Save Draw to History</span>
+                </>
+              )}
+            </button>
+          )}
+
           <button
             type="button"
             onClick={onOpenExport}
             className="px-5 py-2.5 rounded-lg bg-accent hover:bg-accent-hover text-white text-xs sm:text-sm font-semibold transition-colors inline-flex items-center gap-2 shadow-xs cursor-pointer"
           >
             <Download size={15} />
-            <span>Export Roster CSV</span>
+            <span>Export PDF</span>
           </button>
 
           <button

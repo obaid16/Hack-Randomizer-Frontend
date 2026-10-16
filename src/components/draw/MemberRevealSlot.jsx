@@ -5,6 +5,7 @@ import NameReveal from './NameReveal';
 
 /**
  * Single Member Slot inside a Team Card.
+ * Fully responsive across all mobile and presentation viewports.
  */
 export default function MemberRevealSlot({
   slotIndex,
@@ -20,16 +21,16 @@ export default function MemberRevealSlot({
 
   // Role metadata
   const roleIcons = {
-    SECOND_YEAR: <Shield size={12} className="text-accent" />,
-    FIRST_YEAR_1: <User size={12} className="text-secondaryText" />,
-    FIRST_YEAR_2: <User size={12} className="text-secondaryText" />,
-    MENTOR: <GraduationCap size={12} className="text-mentor-DEFAULT" />
+    SECOND_YEAR: <Shield size={12} className="text-accent shrink-0" />,
+    FIRST_YEAR_1: <User size={12} className="text-secondaryText shrink-0" />,
+    FIRST_YEAR_2: <User size={12} className="text-secondaryText shrink-0" />,
+    MENTOR: <GraduationCap size={12} className="text-mentor-DEFAULT shrink-0" />
   };
 
   const roleTags = {
-    SECOND_YEAR: { label: 'Leader · 2nd Year', color: 'bg-accent-subtle text-accent border-accent-border' },
-    FIRST_YEAR_1: { label: 'Core · 1st Year', color: 'bg-slate-100 text-slate-700 border-slate-200' },
-    FIRST_YEAR_2: { label: 'Core · 1st Year', color: 'bg-slate-100 text-slate-700 border-slate-200' },
+    SECOND_YEAR: { label: 'Leader · 2nd Yr', color: 'bg-accent-subtle text-accent border-accent-border' },
+    FIRST_YEAR_1: { label: 'Core · 1st Yr', color: 'bg-slate-100 text-slate-700 border-slate-200' },
+    FIRST_YEAR_2: { label: 'Core · 1st Yr', color: 'bg-slate-100 text-slate-700 border-slate-200' },
     MENTOR: { label: 'Mentor · Assigned', color: 'bg-mentor-bg text-mentor-DEFAULT border-mentor-border' }
   };
 
@@ -38,11 +39,11 @@ export default function MemberRevealSlot({
   return (
     <div
       onClick={onSlotClick}
-      className={`slot-container px-3.5 py-2.5 transition-all duration-200 ${
+      className={`slot-container px-3 py-2 sm:px-3.5 sm:py-2.5 transition-all duration-200 ${
         isMentor ? 'mentor-slot bg-amber-50/20' : ''
       } ${member.revealed ? 'revealed-slot' : ''} ${
         isTarget ? 'active-target ring-2 ring-accent/30' : ''
-      } ${isTarget && !isAnimating ? 'hover:border-accent hover:shadow-sm' : ''}`}
+      } ${isTarget && !isAnimating ? 'hover:border-accent hover:shadow-sm cursor-pointer' : ''}`}
       role="button"
       tabIndex={isTarget ? 0 : -1}
       aria-label={`${member.roleLabel}: ${member.revealed ? member.name : 'Concealed'}`}
@@ -54,17 +55,17 @@ export default function MemberRevealSlot({
       }}
     >
       {/* Slot Header: Role label & tag */}
-      <div className="flex items-center justify-between mb-1.5">
-        <div className="flex items-center gap-1.5 text-[11px] font-mono uppercase tracking-wider text-secondaryText">
+      <div className="flex items-center justify-between mb-1 gap-1">
+        <div className="flex items-center gap-1.5 text-[10px] sm:text-[11px] font-mono uppercase tracking-wider text-secondaryText truncate">
           {roleIcons[member.role]}
-          <span className="font-semibold">{member.roleLabel}</span>
+          <span className="font-semibold truncate">{member.roleLabel}</span>
         </div>
-        <div className="flex items-center gap-1">
-          <span className={`text-[10px] font-sans font-medium px-1.5 py-0.5 rounded border ${tag.color}`}>
+        <div className="flex items-center gap-1 shrink-0">
+          <span className={`text-[9px] sm:text-[10px] font-sans font-medium px-1.5 py-0.5 rounded border ${tag.color}`}>
             {tag.label}
           </span>
           {member.revealed && (
-            <span className="text-success inline-flex items-center">
+            <span className="text-success inline-flex items-center ml-0.5">
               <Check size={12} strokeWidth={2.5} />
             </span>
           )}

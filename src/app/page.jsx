@@ -116,10 +116,10 @@ export default function TeamDrawPage() {
     // Update presentation view focus to follow the active draw
     setPresentationTeamIndex(next.teamIndex);
 
-    // Release animation lock after reveal completes (~850ms)
+    // Release animation lock after reveal completes (~1750ms)
     setTimeout(() => {
       setIsAnimating(false);
-    }, 850);
+    }, 1750);
   }, [teams, isAnimating, showToast]);
 
   /**
@@ -144,7 +144,7 @@ export default function TeamDrawPage() {
 
     setIsAnimating(true);
 
-    // Sequence unrevealed members with 900ms delay between each reveal
+    // Sequence unrevealed members with 2300ms delay between each reveal for suspense
     unrevealedSlots.forEach((slot, sequenceStep) => {
       setTimeout(() => {
         setTeams((prevTeams) => {
@@ -172,9 +172,9 @@ export default function TeamDrawPage() {
         if (sequenceStep === unrevealedSlots.length - 1) {
           setTimeout(() => {
             setIsAnimating(false);
-          }, 850);
+          }, 1750);
         }
-      }, sequenceStep * 900);
+      }, sequenceStep * 2300);
     });
   }, [teams, isAnimating, progress.currentTeamIndex, showToast]);
 

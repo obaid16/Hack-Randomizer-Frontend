@@ -15,7 +15,7 @@ export default function UnassignedParticipants({ unassigned = {} }) {
     <div className="mt-12 bg-white rounded-xl border border-border p-5 shadow-clean no-print">
       <div className="flex items-center gap-2 mb-2 text-secondaryText">
         <Info size={16} className="text-secondaryText" />
-        <h4 className="font-display font-bold text-sm tracking-tight text-primaryText">
+        <h4 className="font-display font-bold text-sm text-primaryText">
           Unassigned Participants ({totalLeftover} Total Reserved)
         </h4>
       </div>

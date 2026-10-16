@@ -25,18 +25,28 @@ async function request(endpoint, options = {}) {
   }
 
   let response;
+  const timeoutMs = options.timeout || 12000;
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+
   try {
     response = await fetch(url, {
       ...options,
-      headers
+      headers,
+      signal: options.signal || controller.signal
     });
   } catch (err) {
+    if (err.name === 'AbortError') {
+      throw new ApiError('Request timed out. Please check your connection and retry.', 408, [], true);
+    }
     throw new ApiError(
       'Unable to connect to the server. Please check your network connection.',
       503,
       [],
       true
     );
+  } finally {
+    clearTimeout(timer);
   }
 
   // Handle binary / CSV downloads

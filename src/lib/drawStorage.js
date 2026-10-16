@@ -2,9 +2,10 @@ import fs from 'fs';
 import path from 'path';
 import mongoose from 'mongoose';
 
-// Local disk backup path
-const DATA_DIR = path.join(process.cwd(), 'src', 'data');
-const BACKUP_FILE = path.join(DATA_DIR, 'saved_draws.json');
+// Local disk backup path with Vercel serverless /tmp fallback
+const PRIMARY_DATA_DIR = path.join(process.cwd(), 'src', 'data');
+const PRIMARY_FILE = path.join(PRIMARY_DATA_DIR, 'saved_draws.json');
+const TMP_FILE = path.join('/tmp', 'saved_draws.json');
 
 // Mongoose schema for persistent event draws
 const DrawSchema = new mongoose.Schema(
@@ -39,38 +40,71 @@ function getDrawModel() {
   return cachedModel;
 }
 
-// Database Connection Helper
-let isConnected = false;
-async function connectToDatabase() {
-  if (isConnected || mongoose.connection.readyState === 1) {
-    isConnected = true;
-    return true;
-  }
+// Global cached connection for Next.js / Serverless
+let cachedConnection = global.mongoose;
+if (!cachedConnection) {
+  cachedConnection = global.mongoose = { conn: null, promise: null };
+}
 
+async function connectToDatabase() {
   const uri = process.env.MONGODB_URI;
   if (!uri) return false;
 
-  try {
-    await mongoose.connect(uri, {
-      serverSelectionTimeoutMS: 4000,
-      connectTimeoutMS: 5000
+  if (cachedConnection.conn && mongoose.connection.readyState === 1) {
+    return true;
+  }
+
+  if (!cachedConnection.promise) {
+    const opts = {
+      bufferCommands: false,
+      serverSelectionTimeoutMS: 3000,
+      connectTimeoutMS: 3000
+    };
+
+    cachedConnection.promise = mongoose.connect(uri, opts).then((inst) => {
+      return inst;
     });
-    isConnected = true;
+  }
+
+  try {
+    cachedConnection.conn = await cachedConnection.promise;
     return true;
   } catch (err) {
-    console.warn('[DrawStorage] MongoDB Atlas connection error, using local persistent storage:', err.message);
+    cachedConnection.promise = null;
+    console.warn('[DrawStorage] MongoDB Atlas connection error, falling back to local persistent storage:', err.message);
     return false;
   }
 }
 
-// Local File Helper
+// Resilient File Helper with /tmp write fallback for serverless
+function getWritableFile() {
+  try {
+    if (!fs.existsSync(PRIMARY_DATA_DIR)) {
+      fs.mkdirSync(PRIMARY_DATA_DIR, { recursive: true });
+    }
+    const testFile = path.join(PRIMARY_DATA_DIR, '.write_test');
+    fs.writeFileSync(testFile, '1');
+    fs.unlinkSync(testFile);
+    return PRIMARY_FILE;
+  } catch {
+    return TMP_FILE;
+  }
+}
+
 function readLocalDraws() {
   try {
-    if (!fs.existsSync(BACKUP_FILE)) {
-      return [];
+    // Check tmp file first (latest serverless writes)
+    if (fs.existsSync(TMP_FILE)) {
+      const data = fs.readFileSync(TMP_FILE, 'utf-8');
+      const parsed = JSON.parse(data);
+      if (Array.isArray(parsed) && parsed.length > 0) return parsed;
     }
-    const data = fs.readFileSync(BACKUP_FILE, 'utf-8');
-    return JSON.parse(data) || [];
+    // Then check bundled/project file
+    if (fs.existsSync(PRIMARY_FILE)) {
+      const data = fs.readFileSync(PRIMARY_FILE, 'utf-8');
+      return JSON.parse(data) || [];
+    }
+    return [];
   } catch (e) {
     return [];
   }
@@ -78,13 +112,15 @@ function readLocalDraws() {
 
 function writeLocalDraws(draws) {
   try {
-    if (!fs.existsSync(DATA_DIR)) {
-      fs.mkdirSync(DATA_DIR, { recursive: true });
+    const targetFile = getWritableFile();
+    const dir = path.dirname(targetFile);
+    if (!fs.existsSync(dir)) {
+      fs.mkdirSync(dir, { recursive: true });
     }
-    fs.writeFileSync(BACKUP_FILE, JSON.stringify(draws, null, 2), 'utf-8');
+    fs.writeFileSync(targetFile, JSON.stringify(draws, null, 2), 'utf-8');
     return true;
   } catch (e) {
-    console.error('[DrawStorage] Failed writing local backup file:', e);
+    console.error('[DrawStorage] Failed writing local backup file:', e.message);
     return false;
   }
 }
@@ -160,21 +196,19 @@ export async function getAllDrawRecords() {
     const dbOk = await connectToDatabase();
     if (dbOk) {
       const DrawModel = getDrawModel();
-      const mongoDocs = await DrawModel.find({}).sort({ createdAt: -1 }).lean();
-      if (mongoDocs && mongoDocs.length > 0) {
-        // Merge with local if needed
-        const seenIds = new Set(mongoDocs.map((d) => d.drawId));
-        const merged = [...mongoDocs];
-        localDraws.forEach((ld) => {
-          if (!seenIds.has(ld.drawId)) {
-            merged.push(ld);
-          }
-        });
-        return {
-          draws: merged,
-          storage: 'mongodb'
-        };
-      }
+      const mongoDocs = (await DrawModel.find({}).sort({ createdAt: -1 }).lean()) || [];
+      // Merge any local draws not yet synced to MongoDB
+      const seenIds = new Set(mongoDocs.map((d) => d.drawId));
+      const merged = [...mongoDocs];
+      localDraws.forEach((ld) => {
+        if (!seenIds.has(ld.drawId)) {
+          merged.push(ld);
+        }
+      });
+      return {
+        draws: merged,
+        storage: 'mongodb'
+      };
     }
   } catch (err) {
     console.warn('[DrawStorage] MongoDB query failed, using local backup:', err.message);

@@ -143,7 +143,7 @@ export default function SavedDrawDetailPage() {
                   <div className="flex flex-wrap items-center gap-4 text-xs text-secondaryText">
                     <span className="inline-flex items-center gap-1.5">
                       <Calendar size={13} className="text-accent" />
-                      <span>
+                      <span suppressHydrationWarning>
                         {new Date(draw.timestamp || draw.createdAt).toLocaleDateString('en-US', {
                           month: 'long',
                           day: 'numeric',

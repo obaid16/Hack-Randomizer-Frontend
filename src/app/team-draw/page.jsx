@@ -48,6 +48,7 @@ export default function TeamDrawExperiencePage() {
   const [isAnimating, setIsAnimating] = useState(false);
   const [isSaved, setIsSaved] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  const [mounted, setMounted] = useState(false);
 
   // Modals & Overlay States
   const [showPresentation, setShowPresentation] = useState(false);
@@ -62,6 +63,7 @@ export default function TeamDrawExperiencePage() {
 
   // Restore active draw if session was refreshed
   useEffect(() => {
+    setMounted(true);
     try {
       const cached = sessionStorage.getItem('active_hackathon_draw');
       if (cached) {
@@ -422,14 +424,6 @@ export default function TeamDrawExperiencePage() {
         />
 
         <main className="app-container py-6 sm:py-8">
-          {/* Printable Header for Print View */}
-          <div className="hidden print:block print-header">
-            <h1 className="text-2xl font-bold">Hackathon 2027 · Official Team Roster</h1>
-            <p className="text-xs text-slate-600">
-              Generated on {new Date().toLocaleDateString()} · Composition: 1 Second-Year + 2 First-Years + 1 Unique Mentor
-            </p>
-          </div>
-
           {/* Hero / Generator Entry Section */}
           <HeroSection
             validation={validation}
@@ -441,6 +435,14 @@ export default function TeamDrawExperiencePage() {
           {/* Active Live Draw Area */}
           {isDrawActive && (
             <section aria-label="Team Draw Experience">
+              {/* Printable Header for Print View */}
+              <div className="hidden print:block print-header mb-6">
+                <h1 className="text-2xl font-bold">Hackathon 2027 · Official Team Roster</h1>
+                <p className="text-xs text-slate-600" suppressHydrationWarning>
+                  Generated on {mounted ? new Date().toLocaleDateString() : 'Official Event'} · Composition: 1 Second-Year + 2 First-Years + 1 Unique Mentor
+                </p>
+              </div>
+
               {/* Draw Controls Toolbar with explicit Save Draw button */}
               <DrawControls
                 isDrawActive={isDrawActive}

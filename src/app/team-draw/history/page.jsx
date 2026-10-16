@@ -31,8 +31,14 @@ export default function DrawHistoryPage() {
   const fetchDraws = useCallback(async () => {
     setLoading(true);
     setError(null);
+
+    // Timeout safety to prevent infinite loading state
+    const timeoutPromise = new Promise((_, reject) =>
+      setTimeout(() => reject(new Error('Connection timed out while loading records.')), 9000)
+    );
+
     try {
-      const res = await drawsApi.getAll();
+      const res = await Promise.race([drawsApi.getAll(), timeoutPromise]);
       setDraws(res.draws || []);
       setStorageType(res.storage || 'file_storage');
     } catch (err) {
@@ -121,7 +127,14 @@ export default function DrawHistoryPage() {
                 <span>{storageType === 'mongodb' ? 'MongoDB Atlas' : 'Persistent Storage'}</span>
               </span>
               <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded bg-white border border-border">
-                <strong>{draws.length}</strong> {draws.length === 1 ? 'record' : 'records'}
+                {loading ? (
+                  <span className="text-secondaryText/70">Syncing...</span>
+                ) : (
+                  <>
+                    <strong className="text-primaryText">{draws.length}</strong>{' '}
+                    <span>{draws.length === 1 ? 'record' : 'records'}</span>
+                  </>
+                )}
               </span>
             </div>
           </div>
@@ -201,7 +214,7 @@ export default function DrawHistoryPage() {
                       <div className="flex items-center justify-between pb-2.5 mb-3 border-b border-border/70 text-xs">
                         <span className="font-mono text-[11px] text-secondaryText inline-flex items-center gap-1">
                           <Calendar size={12} />
-                          <span>{dateFormatted}</span>
+                          <span suppressHydrationWarning>{dateFormatted}</span>
                         </span>
 
                         {isComplete ? (

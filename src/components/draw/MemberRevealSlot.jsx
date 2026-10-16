@@ -72,9 +72,10 @@ export default function MemberRevealSlot({
         </div>
       </div>
 
-      {/* Signature Mechanical Reveal Window */}
+      {/* Signature Mechanical Counter Reveal Window */}
       <NameReveal
         name={member.name}
+        role={member.role}
         revealed={member.revealed}
         isTarget={isTarget}
         isMentor={isMentor}

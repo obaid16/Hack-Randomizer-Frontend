@@ -56,8 +56,8 @@ export default function DrawProgress({ progress }) {
       {/* Restrained Progress Bar */}
       <div className="w-full bg-slate-100 rounded-full h-2 overflow-hidden mb-4 border border-border/40">
         <div
-          className={`h-full transition-all duration-300 rounded-full ${
-            isAllRevealed ? 'bg-success' : 'bg-accent'
+          className={`h-full transition-all duration-500 rounded-full ${
+            isAllRevealed ? 'bg-success' : 'shimmer-bar'
           }`}
           style={{ width: `${percentage}%` }}
         />

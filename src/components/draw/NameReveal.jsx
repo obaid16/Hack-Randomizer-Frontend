@@ -1,129 +1,172 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
-import { motion, useReducedMotion } from 'framer-motion';
+import { useState, useEffect, useRef, useMemo } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
+import {
+  secondYearStudents,
+  firstYearStudents,
+  mentors
+} from '@/data/participants';
+import { playMechanicalTick, playLockChime } from '@/lib/soundFx';
 
 /**
- * Mechanical Ticker Name Reveal Component with Suspense Delay
+ * Authentic Mechanical Counter / Slot Machine Name Reel Component
  * 
- * Simulates a precision vertical mechanical drum/flip counter with extended
- * suspense, rolling through candidates before locking cleanly on the real name.
+ * Simulates a high-speed mechanical drum counter from casino/arcade draw games:
+ * - Spins through 18 candidate names from the actual roster.
+ * - Starts with high-speed rotation and subtle motion blur.
+ * - Smoothly decelerates with mechanical friction.
+ * - Rebounds and locks into place with physical overshoot bounce and audio click.
  */
 export default function NameReveal({
   name,
+  role = 'SECOND_YEAR',
   revealed = false,
   isTarget = false,
   isMentor = false,
   onAnimationComplete = null,
   isPresentation = false
 }) {
-  const shouldReduceMotion = useReducedMotion();
   const [animating, setAnimating] = useState(false);
   const [displayedName, setDisplayedName] = useState(revealed ? name : '');
+  const [justLocked, setJustLocked] = useState(false);
   const prevRevealedRef = useRef(revealed);
 
-  // Mechanical ticker sequence steps passing through the reveal aperture
-  const tickerSlots = [
-    '· · · INITIATING DRAW · · ·',
-    '■ ■ ■ SCANNING POOL ■ ■ ■',
-    '· · · SHUFFLING CANDIDATES · · ·',
-    '■ ■ ■ SYNCHRONIZING ■ ■ ■',
-    '· · · LOCKING IN ROSTER · · ·',
-    '— FINAL SELECTION —',
-    name
-  ];
+  // Height of each slot item in the mechanical drum
+  const slotHeight = isPresentation ? 44 : 34;
+  const TOTAL_DURATION_SEC = 2.4; // 2.4s of authentic counter game spin
+  const TOTAL_DURATION_MS = TOTAL_DURATION_SEC * 1000;
 
-  // Height of one slot line in viewport (mobile friendly)
-  const slotHeight = isPresentation ? 40 : 30;
-  // Total suspenseful animation duration in ms
-  const ANIMATION_DURATION_MS = 1650;
+  // Generate an authentic 18-item reel of candidate names from the roster
+  const reelItems = useMemo(() => {
+    let pool = firstYearStudents;
+    if (role === 'SECOND_YEAR') pool = secondYearStudents;
+    if (role === 'MENTOR') pool = mentors;
+
+    // Pick 17 candidate names shuffled
+    const poolCopy = [...pool].filter((n) => n !== name);
+    const shuffled = [];
+    while (shuffled.length < 17) {
+      const remaining = poolCopy.length > 0 ? [...poolCopy] : [...pool];
+      for (let i = remaining.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [remaining[i], remaining[j]] = [remaining[j], remaining[i]];
+      }
+      shuffled.push(...remaining);
+    }
+
+    // 17 candidate items + 1 final target winning name
+    return [...shuffled.slice(0, 17), name];
+  }, [name, role]);
 
   useEffect(() => {
-    // Detect transition from concealed -> revealed
+    // Detect trigger: concealed -> revealed
     if (!prevRevealedRef.current && revealed) {
       prevRevealedRef.current = true;
-
-      if (shouldReduceMotion) {
-        setDisplayedName(name);
-        if (onAnimationComplete) onAnimationComplete();
-        return;
-      }
-
       setAnimating(true);
+      setJustLocked(false);
 
-      const timer = setTimeout(() => {
+      // Play decelerating mechanical ratchet clicks as the reel spins
+      const tickIntervals = [
+        60, 130, 200, 280, 360, 450, 550, 660, 780, 920, 1070, 1240, 1430, 1640, 1870, 2120
+      ];
+      const tickTimers = tickIntervals.map((ms, idx) => {
+        return setTimeout(() => {
+          playMechanicalTick(0.9 + idx * 0.05);
+        }, ms);
+      });
+
+      // Reel settles and locks into place
+      const lockTimer = setTimeout(() => {
         setDisplayedName(name);
         setAnimating(false);
+        setJustLocked(true);
+        playLockChime();
+
         if (onAnimationComplete) {
           onAnimationComplete();
         }
-      }, ANIMATION_DURATION_MS);
 
-      return () => clearTimeout(timer);
+        setTimeout(() => setJustLocked(false), 1500);
+      }, TOTAL_DURATION_MS);
+
+      return () => {
+        tickTimers.forEach(clearTimeout);
+        clearTimeout(lockTimer);
+      };
     } else if (!revealed) {
       prevRevealedRef.current = false;
       setDisplayedName('');
       setAnimating(false);
+      setJustLocked(false);
     }
-  }, [revealed, name, shouldReduceMotion, onAnimationComplete]);
+  }, [revealed, name, TOTAL_DURATION_MS, onAnimationComplete]);
 
   return (
     <div
-      className={`relative w-full overflow-hidden select-none transition-colors duration-200 ${
-        isPresentation ? 'h-10' : 'h-8'
-      } flex items-center`}
+      className={`relative w-full overflow-hidden select-none transition-all duration-300 ${
+        isPresentation ? 'h-11' : 'h-9'
+      } flex items-center rounded-lg`}
     >
-      {/* 1. Concealed State */}
+      {/* 1. Concealed State (Before Trigger) */}
       {!revealed && !animating && (
-        <div className="flex items-center justify-between w-full text-secondaryText text-xs font-mono">
-          <span className="tracking-widest opacity-40 text-[11px] sm:text-xs truncate max-w-[140px] sm:max-w-none">
-            · · · · · · · · · · · ·
-          </span>
+        <div className="flex items-center justify-between w-full text-secondaryText text-xs font-mono px-1">
+          <div className="flex items-center gap-1.5">
+            <span className="inline-block w-1.5 h-1.5 rounded-full bg-slate-300 animate-pulse" />
+            <span className="tracking-widest opacity-40 text-[11px] sm:text-xs truncate max-w-[140px] sm:max-w-none">
+              · · · · · · · · · · · ·
+            </span>
+          </div>
           <span
-            className={`text-[10px] sm:text-[11px] font-sans px-2 py-0.5 rounded transition-all whitespace-nowrap shrink-0 ml-1.5 ${
+            className={`text-[10px] sm:text-[11px] font-sans px-2.5 py-0.5 rounded-full transition-all whitespace-nowrap shrink-0 ml-1.5 ${
               isTarget
-                ? 'bg-accent-subtle text-accent font-semibold ring-1 ring-accent/30 animate-pulse'
-                : 'text-secondaryText/60 bg-slate-100/80'
+                ? 'bg-accent text-white font-bold ring-2 ring-accent/30 shadow-xs animate-bounce'
+                : 'text-secondaryText/60 bg-slate-100'
             }`}
           >
-            {isTarget ? 'Ready to reveal' : 'Concealed'}
+            {isTarget ? 'Click to Roll' : 'Concealed'}
           </span>
         </div>
       )}
 
-      {/* 2. Suspenseful Mechanical Rolling Animation */}
-      {animating && !shouldReduceMotion && (
-        <div className="w-full h-full relative overflow-hidden bg-slate-50/60 rounded px-1">
-          {/* Top/bottom mechanical vignette shadows */}
-          <div className="absolute inset-x-0 top-0 h-2.5 bg-gradient-to-b from-white via-white/80 to-transparent z-10 pointer-events-none" />
-          <div className="absolute inset-x-0 bottom-0 h-2.5 bg-gradient-to-t from-white via-white/80 to-transparent z-10 pointer-events-none" />
+      {/* 2. Authentic Mechanical Slot Reel Spinner */}
+      {animating && (
+        <div className="w-full h-full relative overflow-hidden bg-slate-900/90 rounded-md border border-slate-700 shadow-inner px-2">
+          {/* Slot Machine 3D Cylinder Depth Shadows */}
+          <div className="absolute inset-x-0 top-0 h-3 bg-gradient-to-b from-black/80 via-black/40 to-transparent z-20 pointer-events-none" />
+          <div className="absolute inset-x-0 bottom-0 h-3 bg-gradient-to-t from-black/80 via-black/40 to-transparent z-20 pointer-events-none" />
 
+          {/* Central Target Reticle Indicator Brackets */}
+          <div className="absolute inset-y-0 left-0 w-1 bg-accent z-20 animate-pulse" />
+          <div className="absolute inset-y-0 right-0 w-1 bg-accent z-20 animate-pulse" />
+
+          {/* Vertical Reel Strip Moving Downwards */}
           <motion.div
             initial={{ y: 0 }}
-            animate={{ y: -(tickerSlots.length - 1) * slotHeight }}
+            animate={{ y: -(reelItems.length - 1) * slotHeight }}
             transition={{
-              duration: 1.6,
-              ease: [0.12, 0.95, 0.25, 1], // Slow, satisfying mechanical deceleration
+              duration: TOTAL_DURATION_SEC,
+              ease: [0.15, 0.9, 0.22, 1.0], // Authentic casino slot reel deceleration curve
             }}
             className="flex flex-col"
           >
-            {tickerSlots.map((item, idx) => {
-              const isFinal = idx === tickerSlots.length - 1;
+            {reelItems.map((itemName, idx) => {
+              const isFinal = idx === reelItems.length - 1;
               return (
                 <div
                   key={idx}
                   style={{ height: `${slotHeight}px` }}
-                  className={`flex items-center text-left truncate px-1 ${
+                  className={`flex items-center text-left truncate px-2 font-display ${
                     isFinal
-                      ? `font-bold text-primaryText ${
-                          isPresentation
-                            ? 'text-base sm:text-xl'
-                            : 'text-xs sm:text-sm'
+                      ? `font-black text-amber-300 drop-shadow-[0_2px_8px_rgba(251,191,36,0.5)] ${
+                          isPresentation ? 'text-lg sm:text-2xl' : 'text-sm sm:text-base'
                         }`
-                      : 'font-mono text-[10px] sm:text-xs text-accent font-medium tracking-wider'
+                      : `font-semibold text-slate-300/80 ${
+                          isPresentation ? 'text-sm sm:text-base' : 'text-xs'
+                        }`
                   }`}
                 >
-                  {item}
+                  <span className="truncate">{itemName}</span>
                 </div>
               );
             })}
@@ -131,18 +174,21 @@ export default function NameReveal({
         </div>
       )}
 
-      {/* 3. Revealed Stable Name */}
+      {/* 3. Revealed Final State with Celebration Micro-Animation */}
       {revealed && !animating && (
         <motion.div
-          initial={{ opacity: shouldReduceMotion ? 1 : 0.4, scale: shouldReduceMotion ? 1 : 0.98 }}
-          animate={{ opacity: 1, scale: 1 }}
-          transition={{ duration: 0.25 }}
-          className="w-full flex items-center justify-between min-w-0"
+          initial={{ opacity: 0.5, scale: 0.95 }}
+          animate={{
+            opacity: 1,
+            scale: justLocked ? [1, 1.03, 1] : 1,
+          }}
+          transition={{ duration: 0.35, ease: 'easeOut' }}
+          className="w-full flex items-center justify-between min-w-0 px-0.5"
         >
           <span
-            className={`truncate font-semibold tracking-normal ${
+            className={`truncate font-bold tracking-normal ${
               isPresentation
-                ? 'text-base sm:text-xl text-primaryText font-bold'
+                ? 'text-base sm:text-xl text-primaryText font-extrabold'
                 : isMentor
                 ? 'text-xs sm:text-sm text-mentor-DEFAULT font-bold'
                 : 'text-xs sm:text-sm text-primaryText'
@@ -151,9 +197,19 @@ export default function NameReveal({
           >
             {displayedName || name}
           </span>
-          <span className="text-[9px] sm:text-[10px] font-mono text-emerald-700 bg-emerald-50 border border-emerald-200/60 px-1.5 py-0.5 rounded ml-2 uppercase shrink-0 font-medium">
-            Revealed
-          </span>
+
+          <motion.span
+            initial={justLocked ? { scale: 0, rotate: -15 } : false}
+            animate={{ scale: 1, rotate: 0 }}
+            transition={{ type: 'spring', stiffness: 400, damping: 20 }}
+            className={`text-[9px] sm:text-[10px] font-mono px-2 py-0.5 rounded-full ml-2 uppercase shrink-0 font-bold border ${
+              justLocked
+                ? 'bg-amber-100 text-amber-900 border-amber-300 shadow-sm animate-pulse'
+                : 'bg-emerald-50 text-emerald-800 border-emerald-200'
+            }`}
+          >
+            {justLocked ? '⭐ Winner Locked' : 'Revealed'}
+          </motion.span>
         </motion.div>
       )}
     </div>

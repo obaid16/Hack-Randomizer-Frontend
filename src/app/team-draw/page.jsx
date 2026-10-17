@@ -30,7 +30,7 @@ import PresentationMode from '@/components/draw/PresentationMode';
 import ConfirmationDialog from '@/components/draw/ConfirmationDialog';
 import ExportModal from '@/components/draw/ExportModal';
 import CompletionCelebration from '@/components/draw/CompletionCelebration';
-import { History, Sparkles, ArrowLeft, CheckCircle2, ShieldCheck, Database } from 'lucide-react';
+import { History, Sparkles, ArrowLeft, CheckCircle2, ShieldCheck, Shield, Database } from 'lucide-react';
 
 export default function TeamDrawExperiencePage() {
   const { showToast } = useToast();
@@ -411,6 +411,15 @@ export default function TeamDrawExperiencePage() {
             >
               <History size={13} className="text-secondaryText" />
               <span>Draw History</span>
+            </Link>
+
+            <Link
+              href="/dashboard"
+              className="inline-flex items-center gap-1.5 px-3 py-1 rounded-md bg-canvas hover:bg-slate-100 border border-border text-primaryText font-semibold transition-colors"
+              title="Admin Governance Dashboard"
+            >
+              <Shield size={13} className="text-accent" />
+              <span>Admin</span>
             </Link>
           </div>
         </div>

@@ -270,3 +270,56 @@ export const drawsApi = {
     })
 };
 
+// Multi-Event Management Service
+export const eventsApi = {
+  getAll: () => request('/api/events'),
+  getById: (id) => request(`/api/events/${id}`),
+  create: (data) =>
+    request('/api/events', {
+      method: 'POST',
+      body: JSON.stringify(data)
+    }),
+  update: (id, data) =>
+    request(`/api/events/${id}`, {
+      method: 'PATCH',
+      body: JSON.stringify(data)
+    }),
+  delete: (id) =>
+    request(`/api/events/${id}`, {
+      method: 'DELETE'
+    }),
+  duplicate: (id, data = {}) =>
+    request(`/api/events/${id}/duplicate`, {
+      method: 'POST',
+      body: JSON.stringify(data)
+    }),
+  getParticipants: (id) => request(`/api/events/${id}/participants`),
+  addParticipant: (id, data) =>
+    request(`/api/events/${id}/participants`, {
+      method: 'POST',
+      body: JSON.stringify(data)
+    }),
+  updateParticipant: (id, partId, data) =>
+    request(`/api/events/${id}/participants/${partId}`, {
+      method: 'PATCH',
+      body: JSON.stringify(data)
+    }),
+  deleteParticipant: (id, partId) =>
+    request(`/api/events/${id}/participants/${partId}`, {
+      method: 'DELETE'
+    }),
+  bulkImport: (id, participants) =>
+    request(`/api/events/${id}/participants/bulk`, {
+      method: 'POST',
+      body: JSON.stringify({ participants })
+    }),
+  getFeasibility: (id) => request(`/api/events/${id}/feasibility`),
+  generate: (id, options = {}) =>
+    request(`/api/events/${id}/generate`, {
+      method: 'POST',
+      body: JSON.stringify(options)
+    }),
+  getDrawVersions: (id) => request(`/api/events/${id}/draws`),
+  getDrawVersion: (id, drawId) => request(`/api/events/${id}/draws/${drawId}`)
+};
+

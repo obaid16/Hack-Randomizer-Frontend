@@ -11,8 +11,10 @@
   "dependencies": {
     "@hookform/resolvers": "^3.10.0",
     "autoprefixer": "^10.4.20",
+    "bcryptjs": "^3.0.3",
     "clsx": "^2.1.1",
     "framer-motion": "^11.18.2",
+    "jsonwebtoken": "^9.0.3",
     "jspdf": "^4.2.1",
     "jspdf-autotable": "^5.0.9",
     "lenis": "^1.1.20",

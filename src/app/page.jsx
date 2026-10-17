@@ -62,6 +62,13 @@ export default function HackathonLandingPage() {
               <History size={13} />
               <span>Draw History</span>
             </Link>
+            <Link
+              href="/login"
+              className="hover:text-primaryText transition-colors inline-flex items-center gap-1 text-accent font-semibold"
+            >
+              <Shield size={13} />
+              <span>Organizer</span>
+            </Link>
           </nav>
 
           {/* Primary CTA */}
@@ -424,6 +431,9 @@ export default function HackathonLandingPage() {
             </Link>
             <Link href="/team-draw/history" className="hover:text-primaryText transition-colors">
               Draw History
+            </Link>
+            <Link href="/login" className="hover:text-primaryText transition-colors">
+              Organizer Login
             </Link>
           </div>
 

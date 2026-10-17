@@ -1,55 +1,41 @@
 import { cookies } from 'next/headers';
 import { NextResponse } from 'next/server';
-import { getBackendUrl } from '@/lib/backendConfig';
+import { authenticateAdmin } from '@/lib/auth';
 
 export async function POST(request) {
   try {
     const body = await request.json();
+    const { email, password } = body;
 
-    const response = await fetch(`${getBackendUrl()}/auth/login`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify(body)
-    });
+    const result = await authenticateAdmin(email, password);
 
-    const data = await response.json();
-
-    if (!response.ok || !data.success) {
-      return NextResponse.json(
-        {
-          success: false,
-          message: data.message || 'Login failed',
-          errors: data.errors || []
-        },
-        { status: response.status }
-      );
-    }
-
-    // Set HttpOnly cookie on Next.js response
+    // Set secure HttpOnly cookie
     const cookieStore = cookies();
-    cookieStore.set('auth_token', data.data.token, {
+    cookieStore.set('auth_token', result.token, {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
       sameSite: 'lax',
       path: '/',
-      maxAge: 24 * 60 * 60 // 24 hours
+      maxAge: 7 * 24 * 60 * 60 // 7 days
     });
 
     return NextResponse.json({
       success: true,
       message: 'Authentication successful',
-      admin: data.data.admin
+      admin: result.admin,
+      token: result.token
     });
   } catch (error) {
+    const isAuthError =
+      error.message?.includes('Invalid email or password') ||
+      error.message?.includes('required');
+
     return NextResponse.json(
       {
         success: false,
-        message: 'Backend server is currently unreachable. Please ensure the backend is started at ' + BACKEND_URL,
-        isOffline: true
+        message: error.message || 'Authentication failed'
       },
-      { status: 503 }
+      { status: isAuthError ? 401 : 503 }
     );
   }
 }

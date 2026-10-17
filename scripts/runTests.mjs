@@ -172,6 +172,78 @@ assert(unevenGen.unassigned.secondYears.length === 0, '0 leftover SY');
 assert(unevenGen.unassigned.firstYears.length === 1, 'Safely preserves 1 leftover FY');
 assert(unevenGen.unassigned.mentors.length === 1, 'Safely preserves 1 leftover Mentor');
 
+// 5. Dynamic Categories & Multi-Event Feasibility Tests
+console.log('\n--- 5. Dynamic Categories & Feasibility Tests ---');
+
+// Mock Multi-Event Feasibility Calculator
+function calculateDynamicFeasibility(participants, composition, requestedTeams) {
+  let maxPossible = Infinity;
+  let bottleneck = null;
+
+  composition.forEach((rule) => {
+    const available = participants.filter((p) => p.categoryId === rule.categoryId).length;
+    const possible = Math.floor(available / rule.count);
+    if (possible < maxPossible) {
+      maxPossible = possible;
+      bottleneck = rule.categoryId;
+    }
+  });
+
+  const isFeasible = requestedTeams <= maxPossible && requestedTeams > 0;
+  return { maxPossible, isFeasible, bottleneck: isFeasible ? null : bottleneck };
+}
+
+// Test with 3 custom categories: Developer (2 per team), Designer (1 per team), Judge (1 per team)
+const customComposition = [
+  { categoryId: 'cat_dev', count: 2 },
+  { categoryId: 'cat_des', count: 1 },
+  { categoryId: 'cat_judge', count: 1 }
+];
+
+const mockCustomParticipants = [
+  // 6 Developers -> 3 teams
+  { name: 'Dev 1', categoryId: 'cat_dev' },
+  { name: 'Dev 2', categoryId: 'cat_dev' },
+  { name: 'Dev 3', categoryId: 'cat_dev' },
+  { name: 'Dev 4', categoryId: 'cat_dev' },
+  { name: 'Dev 5', categoryId: 'cat_dev' },
+  { name: 'Dev 6', categoryId: 'cat_dev' },
+  // 2 Designers -> 2 teams (Bottleneck!)
+  { name: 'Des 1', categoryId: 'cat_des' },
+  { name: 'Des 2', categoryId: 'cat_des' },
+  // 5 Judges -> 5 teams
+  { name: 'Judge 1', categoryId: 'cat_judge' },
+  { name: 'Judge 2', categoryId: 'cat_judge' },
+  { name: 'Judge 3', categoryId: 'cat_judge' },
+  { name: 'Judge 4', categoryId: 'cat_judge' },
+  { name: 'Judge 5', categoryId: 'cat_judge' }
+];
+
+const feasResult1 = calculateDynamicFeasibility(mockCustomParticipants, customComposition, 2);
+assert(feasResult1.isFeasible, 'Dynamic category feasibility returns true when requested count <= max');
+assert(feasResult1.maxPossible === 2, 'Calculates correct bottleneck limit (2 Designers limit teams to 2)');
+
+const feasResult2 = calculateDynamicFeasibility(mockCustomParticipants, customComposition, 3);
+assert(!feasResult2.isFeasible, 'Dynamic category feasibility detects impossible request (requested 3, max 2)');
+assert(feasResult2.bottleneck === 'cat_des', 'Identifies correct bottleneck category (cat_des)');
+
+// 6. Security & JWT Session Tests
+console.log('\n--- 6. Security & Session Tests ---');
+import jwt from 'jsonwebtoken';
+const TEST_JWT_SECRET = 'test-secret-key-32890123';
+const adminPayload = { email: 'admin@example.org', role: 'ADMIN' };
+const testToken = jwt.sign(adminPayload, TEST_JWT_SECRET, { expiresIn: '1h' });
+const verified = jwt.verify(testToken, TEST_JWT_SECRET);
+assert(verified.email === 'admin@example.org', 'Signs and verifies admin JWT correctly');
+
+let rejectedTampered = false;
+try {
+  jwt.verify(testToken, 'wrong-secret');
+} catch {
+  rejectedTampered = true;
+}
+assert(rejectedTampered, 'Rejects invalid or tampered JWT credentials');
+
 console.log('\n======================================================');
 console.log(` TEST RESULTS: ${passedCount} PASSED, ${failedCount} FAILED`);
 console.log('======================================================\n');
@@ -179,3 +251,4 @@ console.log('======================================================\n');
 if (failedCount > 0) {
   process.exit(1);
 }
+

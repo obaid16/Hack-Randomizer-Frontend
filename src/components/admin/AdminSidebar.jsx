@@ -16,22 +16,40 @@ import {
   LogOut,
   Plus,
   X,
-  Shield,
-  ExternalLink,
-  ChevronRight
+  ExternalLink
 } from 'lucide-react';
 
 export default function AdminSidebar({
+  activeTab,
   activeView,
+  onNavigate,
   setActiveView,
   currentEvent,
   events = [],
   onOpenCreateEvent,
+  onCreateEvent,
   admin,
   onLogout,
   mobileOpen,
-  setMobileOpen
+  setMobileOpen,
+  onCloseMobile
 }) {
+  const currentKey = activeTab || activeView || 'dashboard';
+
+  const handleNavClick = (viewKey) => {
+    if (onNavigate) onNavigate(viewKey);
+    if (setActiveView) setActiveView(viewKey);
+    if (setMobileOpen) setMobileOpen(false);
+    if (onCloseMobile) onCloseMobile();
+  };
+
+  const handleCreate = () => {
+    if (onOpenCreateEvent) onOpenCreateEvent();
+    if (onCreateEvent) onCreateEvent();
+    if (setMobileOpen) setMobileOpen(false);
+    if (onCloseMobile) onCloseMobile();
+  };
+
   const getStatusBadge = (status) => {
     switch (status) {
       case 'ACTIVE':
@@ -41,48 +59,58 @@ export default function AdminSidebar({
       case 'COMPLETED':
         return 'bg-blue-50 text-blue-700 border-blue-200';
       case 'ARCHIVED':
-        return 'bg-slate-100 text-slate-600 border-slate-200';
+        return 'bg-neutral-100 text-neutral-600 border-neutral-200';
       case 'DRAFT':
       default:
         return 'bg-amber-50 text-amber-700 border-amber-200';
     }
   };
 
+  const isItemActive = (key) => {
+    if (currentKey === key) return true;
+    if ((key === 'formation' || key === 'generate') && (currentKey === 'formation' || currentKey === 'generate')) {
+      return true;
+    }
+    return false;
+  };
+
   const navItemClass = (viewKey) => {
-    const isActive = activeView === viewKey;
-    return `w-full flex items-center justify-between px-3 py-2 rounded-lg text-xs font-medium transition-colors ${
-      isActive
-        ? 'bg-accent text-white font-semibold shadow-xs'
-        : 'text-secondaryText hover:text-primaryText hover:bg-slate-100/80'
+    const active = isItemActive(viewKey);
+    return `w-full flex items-center justify-between px-3 py-2 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
+      active
+        ? 'bg-[#5557D9] text-white shadow-sm'
+        : 'text-neutral-700 hover:text-neutral-900 hover:bg-neutral-100'
     }`;
   };
 
-  const handleNavClick = (viewKey) => {
-    setActiveView(viewKey);
-    if (setMobileOpen) setMobileOpen(false);
-  };
+  const historyCount = currentEvent?.history?.length || currentEvent?.drawVersions?.length || 0;
+  const participantCount = currentEvent?.participants?.length || 0;
+  const categoryCount = currentEvent?.categories?.length || 0;
 
   const content = (
-    <div className="h-full flex flex-col justify-between bg-white border-r border-border select-none">
+    <div className="h-full flex flex-col justify-between bg-white border-r border-neutral-200 select-none shadow-sm">
       {/* Top Branding */}
       <div>
-        <div className="p-4 sm:p-5 border-b border-border/80 flex items-center justify-between">
-          <Link href="/" className="flex items-center gap-2 group">
-            <span className="w-2.5 h-2.5 rounded-full bg-accent animate-pulse" />
+        <div className="p-4 sm:p-5 border-b border-neutral-200/80 flex items-center justify-between">
+          <Link href="/" className="flex items-center gap-2.5 group">
+            <span className="w-2.5 h-2.5 rounded-full bg-[#5557D9] animate-pulse" />
             <div>
-              <span className="font-display font-black text-sm tracking-tight text-primaryText group-hover:text-accent transition-colors block">
+              <span className="font-bold text-sm tracking-tight text-neutral-900 group-hover:text-[#5557D9] transition-colors block">
                 EVENT GOVERNANCE
               </span>
-              <span className="text-[10px] font-mono text-secondaryText/70 tracking-wide block">
+              <span className="text-[10px] font-mono font-medium text-neutral-500 tracking-wider block">
                 MULTI-EVENT PORTAL
               </span>
             </div>
           </Link>
 
-          {setMobileOpen && (
+          {(setMobileOpen || onCloseMobile) && (
             <button
-              onClick={() => setMobileOpen(false)}
-              className="lg:hidden p-1.5 rounded-lg text-secondaryText hover:text-primaryText hover:bg-slate-100"
+              onClick={() => {
+                if (setMobileOpen) setMobileOpen(false);
+                if (onCloseMobile) onCloseMobile();
+              }}
+              className="lg:hidden p-1.5 rounded-lg text-neutral-500 hover:text-neutral-900 hover:bg-neutral-100 cursor-pointer"
               aria-label="Close menu"
             >
               <X size={16} />
@@ -91,14 +119,15 @@ export default function AdminSidebar({
         </div>
 
         {/* Navigation Groups */}
-        <div className="p-3 space-y-6 overflow-y-auto max-h-[calc(100vh-180px)]">
+        <div className="p-3 space-y-5 overflow-y-auto max-h-[calc(100vh-180px)]">
           {/* Group 1: Workspace */}
           <div>
-            <span className="text-[10px] font-mono font-bold text-secondaryText/60 uppercase tracking-wider px-2 block mb-1.5">
+            <span className="text-[10px] font-bold text-neutral-400 uppercase tracking-wider px-2 block mb-1.5">
               Workspace
             </span>
             <div className="space-y-0.5">
               <button
+                type="button"
                 onClick={() => handleNavClick('dashboard')}
                 className={navItemClass('dashboard')}
               >
@@ -109,6 +138,7 @@ export default function AdminSidebar({
               </button>
 
               <button
+                type="button"
                 onClick={() => handleNavClick('events')}
                 className={navItemClass('events')}
               >
@@ -116,12 +146,13 @@ export default function AdminSidebar({
                   <Calendar size={15} />
                   <span>All Events</span>
                 </span>
-                <span className="text-[10px] font-mono px-1.5 py-0.2 rounded-full bg-slate-100 text-secondaryText border border-border/60">
+                <span className="text-[10px] font-mono px-1.5 py-0.5 rounded-md bg-neutral-100 text-neutral-700 border border-neutral-200">
                   {events.length}
                 </span>
               </button>
 
               <button
+                type="button"
                 onClick={() => handleNavClick('templates')}
                 className={navItemClass('templates')}
               >
@@ -136,12 +167,12 @@ export default function AdminSidebar({
           {/* Group 2: Current Event */}
           <div>
             <div className="flex items-center justify-between px-2 mb-1.5">
-              <span className="text-[10px] font-mono font-bold text-secondaryText/60 uppercase tracking-wider block">
+              <span className="text-[10px] font-bold text-neutral-400 uppercase tracking-wider block">
                 Current Event
               </span>
               {currentEvent && (
                 <span
-                  className={`text-[9px] font-mono font-bold px-1.5 py-0.2 rounded border ${getStatusBadge(
+                  className={`text-[9px] font-mono font-bold px-1.5 py-0.5 rounded border ${getStatusBadge(
                     currentEvent.status
                   )}`}
                 >
@@ -152,17 +183,18 @@ export default function AdminSidebar({
 
             {currentEvent ? (
               <>
-                <div className="px-2.5 py-2 mb-2 rounded-lg bg-canvas border border-border/80">
-                  <p className="text-xs font-bold text-primaryText truncate mb-0.5" title={currentEvent.name}>
+                <div className="px-3 py-2 mb-2 rounded-lg bg-neutral-50 border border-neutral-200">
+                  <p className="text-xs font-bold text-neutral-900 truncate mb-0.5" title={currentEvent.name}>
                     {currentEvent.name}
                   </p>
-                  <p className="text-[10px] font-mono text-secondaryText truncate">
-                    {currentEvent.participants?.length || 0} participants · {currentEvent.categories?.length || 0} categories
+                  <p className="text-[10px] text-neutral-500 truncate">
+                    {participantCount} participants · {categoryCount} categories
                   </p>
                 </div>
 
                 <div className="space-y-0.5">
                   <button
+                    type="button"
                     onClick={() => handleNavClick('overview')}
                     className={navItemClass('overview')}
                   >
@@ -173,6 +205,7 @@ export default function AdminSidebar({
                   </button>
 
                   <button
+                    type="button"
                     onClick={() => handleNavClick('participants')}
                     className={navItemClass('participants')}
                   >
@@ -180,12 +213,13 @@ export default function AdminSidebar({
                       <Users size={15} />
                       <span>Participants</span>
                     </span>
-                    <span className="text-[10px] font-mono px-1.5 py-0.2 rounded-full bg-slate-100 text-secondaryText border border-border/60">
-                      {currentEvent.participants?.length || 0}
+                    <span className="text-[10px] font-mono px-1.5 py-0.5 rounded-md bg-neutral-100 text-neutral-700 border border-neutral-200">
+                      {participantCount}
                     </span>
                   </button>
 
                   <button
+                    type="button"
                     onClick={() => handleNavClick('categories')}
                     className={navItemClass('categories')}
                   >
@@ -196,6 +230,7 @@ export default function AdminSidebar({
                   </button>
 
                   <button
+                    type="button"
                     onClick={() => handleNavClick('rules')}
                     className={navItemClass('rules')}
                   >
@@ -206,6 +241,7 @@ export default function AdminSidebar({
                   </button>
 
                   <button
+                    type="button"
                     onClick={() => handleNavClick('teams')}
                     className={navItemClass('teams')}
                   >
@@ -216,8 +252,9 @@ export default function AdminSidebar({
                   </button>
 
                   <button
-                    onClick={() => handleNavClick('generate')}
-                    className={navItemClass('generate')}
+                    type="button"
+                    onClick={() => handleNavClick('formation')}
+                    className={navItemClass('formation')}
                   >
                     <span className="flex items-center gap-2.5">
                       <Sparkles size={15} />
@@ -226,6 +263,7 @@ export default function AdminSidebar({
                   </button>
 
                   <button
+                    type="button"
                     onClick={() => handleNavClick('history')}
                     className={navItemClass('history')}
                   >
@@ -233,12 +271,13 @@ export default function AdminSidebar({
                       <History size={15} />
                       <span>Draw History</span>
                     </span>
-                    <span className="text-[10px] font-mono px-1.5 py-0.2 rounded-full bg-slate-100 text-secondaryText border border-border/60">
-                      {currentEvent.drawVersions?.length || 0}
+                    <span className="text-[10px] font-mono px-1.5 py-0.5 rounded-md bg-neutral-100 text-neutral-700 border border-neutral-200">
+                      {historyCount}
                     </span>
                   </button>
 
                   <button
+                    type="button"
                     onClick={() => handleNavClick('reports')}
                     className={navItemClass('reports')}
                   >
@@ -249,6 +288,7 @@ export default function AdminSidebar({
                   </button>
 
                   <button
+                    type="button"
                     onClick={() => handleNavClick('audit')}
                     className={navItemClass('audit')}
                   >
@@ -259,6 +299,7 @@ export default function AdminSidebar({
                   </button>
 
                   <button
+                    type="button"
                     onClick={() => handleNavClick('settings')}
                     className={navItemClass('settings')}
                   >
@@ -270,11 +311,12 @@ export default function AdminSidebar({
                 </div>
               </>
             ) : (
-              <div className="p-3 rounded-xl bg-slate-50 border border-dashed border-border text-center">
-                <p className="text-xs text-secondaryText mb-2">No event selected</p>
+              <div className="p-3 rounded-xl bg-neutral-50 border border-dashed border-neutral-200 text-center">
+                <p className="text-xs text-neutral-500 mb-2">No event selected</p>
                 <button
-                  onClick={onOpenCreateEvent}
-                  className="w-full py-1.5 px-3 rounded-lg bg-accent hover:bg-accent-hover text-white text-[11px] font-bold flex items-center justify-center gap-1.5"
+                  type="button"
+                  onClick={handleCreate}
+                  className="w-full py-1.5 px-3 rounded-lg bg-[#5557D9] hover:bg-indigo-700 text-white text-[11px] font-bold flex items-center justify-center gap-1.5 cursor-pointer shadow-sm transition-colors"
                 >
                   <Plus size={13} />
                   <span>Create Event</span>
@@ -286,10 +328,10 @@ export default function AdminSidebar({
       </div>
 
       {/* Bottom Account & Footer */}
-      <div className="p-3 border-t border-border/80 bg-white space-y-2">
+      <div className="p-3 border-t border-neutral-200 bg-white space-y-2">
         <Link
-          href="/team-draw"
-          className="w-full flex items-center justify-between px-3 py-2 rounded-lg text-xs font-semibold text-accent bg-accent-subtle/50 hover:bg-accent-subtle transition-colors"
+          href={`/team-draw${currentEvent ? `?eventId=${currentEvent.eventId}` : ''}`}
+          className="w-full flex items-center justify-between px-3 py-2 rounded-lg text-xs font-semibold text-[#5557D9] bg-indigo-50 hover:bg-indigo-100 transition-colors"
           target="_blank"
           rel="noopener noreferrer"
         >
@@ -300,23 +342,24 @@ export default function AdminSidebar({
           <ExternalLink size={12} />
         </Link>
 
-        <div className="flex items-center justify-between p-2 rounded-lg bg-slate-50 border border-border/60">
+        <div className="flex items-center justify-between p-2 rounded-lg bg-neutral-50 border border-neutral-200">
           <div className="flex items-center gap-2 overflow-hidden">
-            <div className="w-7 h-7 rounded-full bg-accent text-white flex items-center justify-center font-bold text-xs shrink-0">
-              {admin?.name?.charAt(0) || 'A'}
+            <div className="w-7 h-7 rounded-full bg-[#5557D9] text-white flex items-center justify-center font-bold text-xs shrink-0">
+              {admin?.name?.charAt(0) || admin?.email?.charAt(0)?.toUpperCase() || 'A'}
             </div>
             <div className="overflow-hidden">
-              <p className="text-xs font-bold text-primaryText truncate">
-                {admin?.name || 'Administrator'}
+              <p className="text-xs font-bold text-neutral-900 truncate">
+                {admin?.name || 'Obaid Shaikh (Admin)'}
               </p>
-              <p className="text-[10px] text-secondaryText truncate" title={admin?.email}>
-                {admin?.email || 'admin@hackathon.org'}
+              <p className="text-[10px] text-neutral-500 truncate" title={admin?.email}>
+                {admin?.email || 'obaidullahshaikh07@gmail.com'}
               </p>
             </div>
           </div>
           <button
+            type="button"
             onClick={onLogout}
-            className="p-1.5 rounded-md text-secondaryText hover:text-rose-600 hover:bg-rose-50 transition-colors"
+            className="p-1.5 rounded-md text-neutral-500 hover:text-red-600 hover:bg-red-50 transition-colors cursor-pointer"
             title="Sign Out"
           >
             <LogOut size={15} />
@@ -329,7 +372,7 @@ export default function AdminSidebar({
   return (
     <>
       {/* Desktop Sidebar (Fixed 260px) */}
-      <aside className="hidden lg:block w-[260px] h-screen sticky top-0 shrink-0 z-30">
+      <aside className="hidden lg:block w-[260px] h-screen fixed left-0 top-0 shrink-0 z-30">
         {content}
       </aside>
 
@@ -338,7 +381,10 @@ export default function AdminSidebar({
         <div className="lg:hidden fixed inset-0 z-50 flex">
           <div
             className="fixed inset-0 bg-black/40 backdrop-blur-xs"
-            onClick={() => setMobileOpen(false)}
+            onClick={() => {
+              if (setMobileOpen) setMobileOpen(false);
+              if (onCloseMobile) onCloseMobile();
+            }}
           />
           <div className="relative w-[280px] max-w-[85vw] h-full z-10 shadow-2xl">
             {content}

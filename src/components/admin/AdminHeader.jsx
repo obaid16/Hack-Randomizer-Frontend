@@ -16,21 +16,29 @@ import {
 } from 'lucide-react';
 
 export default function AdminHeader({
+  activeTab,
   activeView,
   events = [],
   currentEvent,
+  selectedEventId,
   onSelectEvent,
   onOpenCreateEvent,
+  onCreateEvent,
   onOpenAddParticipant,
   onOpenGenerateTeams,
+  onHeaderAction,
   admin,
   onLogout,
-  setMobileOpen
+  onOpenProfile,
+  mobileOpen,
+  setMobileOpen,
+  onOpenMobileNav
 }) {
   const [showAccountMenu, setShowAccountMenu] = useState(false);
+  const currentKey = activeTab || activeView || 'dashboard';
 
   const getViewTitle = () => {
-    switch (activeView) {
+    switch (currentKey) {
       case 'dashboard':
         return 'Overview Dashboard';
       case 'events':
@@ -47,6 +55,7 @@ export default function AdminHeader({
         return 'Team Rules & Feasibility';
       case 'teams':
         return 'Formed Teams';
+      case 'formation':
       case 'generate':
         return 'Team Formation';
       case 'history':
@@ -71,37 +80,57 @@ export default function AdminHeader({
       case 'COMPLETED':
         return 'bg-blue-50 text-blue-700 border-blue-200';
       case 'ARCHIVED':
-        return 'bg-slate-100 text-slate-600 border-slate-200';
+        return 'bg-neutral-100 text-neutral-600 border-neutral-200';
       case 'DRAFT':
       default:
         return 'bg-amber-50 text-amber-700 border-amber-200';
     }
   };
 
+  const handleOpenDrawer = () => {
+    if (setMobileOpen) setMobileOpen(true);
+    if (onOpenMobileNav) onOpenMobileNav();
+  };
+
+  const handlePrimaryAction = () => {
+    if (currentKey === 'participants' && onOpenAddParticipant) {
+      onOpenAddParticipant();
+    } else if ((currentKey === 'rules' || currentKey === 'teams') && onOpenGenerateTeams) {
+      onOpenGenerateTeams();
+    } else if (onHeaderAction) {
+      onHeaderAction();
+    } else if (onOpenCreateEvent) {
+      onOpenCreateEvent();
+    } else if (onCreateEvent) {
+      onCreateEvent();
+    }
+  };
+
   return (
-    <header className="sticky top-0 z-20 h-16 bg-white/90 backdrop-blur-md border-b border-border px-4 sm:px-6 flex items-center justify-between gap-4">
+    <header className="sticky top-0 z-20 h-16 bg-white/95 backdrop-blur-md border-b border-neutral-200 px-4 sm:px-6 flex items-center justify-between gap-4 shadow-2xs">
       {/* Left: Mobile Toggle & Breadcrumbs */}
       <div className="flex items-center gap-3 overflow-hidden">
         <button
-          onClick={() => setMobileOpen(true)}
-          className="lg:hidden p-2 rounded-lg text-secondaryText hover:text-primaryText hover:bg-slate-100 cursor-pointer"
+          type="button"
+          onClick={handleOpenDrawer}
+          className="lg:hidden p-2 rounded-lg text-neutral-600 hover:text-neutral-900 hover:bg-neutral-100 cursor-pointer"
           aria-label="Open navigation drawer"
         >
           <Menu size={18} />
         </button>
 
-        <nav aria-label="Breadcrumb" className="flex items-center gap-1.5 text-xs text-secondaryText truncate">
-          <span className="font-semibold text-secondaryText/80">Workspace</span>
-          <span className="text-secondaryText/40">/</span>
-          {currentEvent && activeView !== 'dashboard' && activeView !== 'events' && activeView !== 'templates' ? (
+        <nav aria-label="Breadcrumb" className="flex items-center gap-1.5 text-xs text-neutral-500 truncate">
+          <span className="font-semibold text-neutral-600">Workspace</span>
+          <span className="text-neutral-300">/</span>
+          {currentEvent && currentKey !== 'dashboard' && currentKey !== 'events' && currentKey !== 'templates' ? (
             <>
-              <span className="truncate max-w-[120px] sm:max-w-[180px] font-medium text-secondaryText">
+              <span className="truncate max-w-[120px] sm:max-w-[180px] font-medium text-neutral-600">
                 {currentEvent.name}
               </span>
-              <span className="text-secondaryText/40">/</span>
+              <span className="text-neutral-300">/</span>
             </>
           ) : null}
-          <span className="font-bold text-primaryText truncate">{getViewTitle()}</span>
+          <span className="font-bold text-neutral-900 truncate">{getViewTitle()}</span>
         </nav>
       </div>
 
@@ -112,9 +141,9 @@ export default function AdminHeader({
           <div className="hidden sm:flex items-center gap-2">
             <div className="relative">
               <select
-                value={currentEvent?.eventId || ''}
-                onChange={(e) => onSelectEvent(e.target.value)}
-                className="appearance-none bg-canvas hover:bg-slate-100 border border-border text-primaryText text-xs font-semibold rounded-lg pl-3 pr-8 py-1.5 focus:outline-hidden focus:ring-1 focus:ring-accent cursor-pointer max-w-[200px] truncate"
+                value={selectedEventId || currentEvent?.eventId || ''}
+                onChange={(e) => onSelectEvent && onSelectEvent(e.target.value)}
+                className="appearance-none bg-neutral-50 hover:bg-neutral-100 border border-neutral-200 text-neutral-800 text-xs font-semibold rounded-lg pl-3 pr-8 py-1.5 focus:outline-none focus:ring-2 focus:ring-[#5557D9]/20 focus:border-[#5557D9] cursor-pointer max-w-[210px] truncate shadow-2xs"
                 aria-label="Select active event"
               >
                 {events.map((evt) => (
@@ -125,7 +154,7 @@ export default function AdminHeader({
               </select>
               <ChevronDown
                 size={13}
-                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-secondaryText pointer-events-none"
+                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-neutral-400 pointer-events-none"
               />
             </div>
 
@@ -142,72 +171,84 @@ export default function AdminHeader({
         )}
 
         {/* Primary Action Button Contextual to View */}
-        {activeView === 'participants' ? (
-          <button
-            onClick={onOpenAddParticipant}
-            className="px-3 py-1.5 rounded-lg bg-accent hover:bg-accent-hover text-white text-xs font-bold shadow-xs flex items-center gap-1.5 cursor-pointer transition-colors"
-          >
-            <Plus size={14} />
-            <span className="hidden sm:inline">Add Participant</span>
-            <span className="sm:hidden">Add</span>
-          </button>
-        ) : activeView === 'rules' || activeView === 'teams' ? (
-          <button
-            onClick={onOpenGenerateTeams}
-            className="px-3 py-1.5 rounded-lg bg-accent hover:bg-accent-hover text-white text-xs font-bold shadow-xs flex items-center gap-1.5 cursor-pointer transition-colors"
-          >
-            <Sparkles size={14} />
-            <span className="hidden sm:inline">Form Teams</span>
-            <span className="sm:hidden">Draw</span>
-          </button>
-        ) : (
-          <button
-            onClick={onOpenCreateEvent}
-            className="px-3 py-1.5 rounded-lg bg-accent hover:bg-accent-hover text-white text-xs font-bold shadow-xs flex items-center gap-1.5 cursor-pointer transition-colors"
-          >
-            <Plus size={14} />
-            <span className="hidden sm:inline">New Event</span>
-            <span className="sm:hidden">New</span>
-          </button>
-        )}
+        <button
+          type="button"
+          onClick={handlePrimaryAction}
+          className="px-3 py-1.5 rounded-lg bg-[#5557D9] hover:bg-indigo-700 text-white text-xs font-bold shadow-sm flex items-center gap-1.5 cursor-pointer transition-colors"
+        >
+          {currentKey === 'participants' ? (
+            <>
+              <Plus size={14} />
+              <span className="hidden sm:inline">Add Participant</span>
+              <span className="sm:hidden">Add</span>
+            </>
+          ) : currentKey === 'rules' || currentKey === 'teams' ? (
+            <>
+              <Sparkles size={14} />
+              <span className="hidden sm:inline">Form Teams</span>
+              <span className="sm:hidden">Draw</span>
+            </>
+          ) : (
+            <>
+              <Plus size={14} />
+              <span className="hidden sm:inline">New Event</span>
+              <span className="sm:hidden">New</span>
+            </>
+          )}
+        </button>
 
         {/* Account Menu */}
         <div className="relative">
           <button
+            type="button"
             onClick={() => setShowAccountMenu(!showAccountMenu)}
-            className="flex items-center gap-2 p-1 sm:px-2.5 sm:py-1 rounded-lg hover:bg-slate-100 border border-transparent hover:border-border transition-colors cursor-pointer"
+            className="flex items-center gap-2 p-1 sm:px-2.5 sm:py-1 rounded-lg hover:bg-neutral-100 border border-transparent hover:border-neutral-200 transition-colors cursor-pointer"
             aria-expanded={showAccountMenu}
             aria-label="Admin user account options"
           >
-            <div className="w-7 h-7 rounded-full bg-accent text-white flex items-center justify-center font-bold text-xs">
-              {admin?.name?.charAt(0) || 'A'}
+            <div className="w-7 h-7 rounded-full bg-[#5557D9] text-white flex items-center justify-center font-bold text-xs">
+              {admin?.name?.charAt(0) || admin?.email?.charAt(0)?.toUpperCase() || 'A'}
             </div>
             <div className="hidden md:block text-left">
-              <span className="text-xs font-bold text-primaryText block leading-tight">
-                {admin?.name || 'Admin'}
+              <span className="text-xs font-bold text-neutral-900 block leading-tight">
+                {admin?.name || 'Obaid Shaikh (Admin)'}
               </span>
-              <span className="text-[10px] font-mono text-secondaryText block leading-tight">
+              <span className="text-[10px] font-mono text-neutral-500 block leading-tight">
                 {admin?.role || 'ADMIN'}
               </span>
             </div>
-            <ChevronDown size={12} className="hidden md:block text-secondaryText" />
+            <ChevronDown size={12} className="hidden md:block text-neutral-400" />
           </button>
 
           {showAccountMenu && (
-            <div className="absolute right-0 mt-2 w-56 rounded-xl bg-white border border-border shadow-lg p-2 z-50">
-              <div className="px-3 py-2 border-b border-border/80 mb-1">
-                <p className="text-xs font-bold text-primaryText">{admin?.name || 'Administrator'}</p>
-                <p className="text-[11px] font-mono text-secondaryText truncate" title={admin?.email}>
-                  {admin?.email}
+            <div className="absolute right-0 mt-2 w-56 rounded-xl bg-white border border-neutral-200 shadow-xl p-2 z-50 animate-in fade-in duration-100">
+              <div className="px-3 py-2 border-b border-neutral-100 mb-1">
+                <p className="text-xs font-bold text-neutral-900">{admin?.name || 'Super Administrator'}</p>
+                <p className="text-[11px] font-mono text-neutral-500 truncate" title={admin?.email}>
+                  {admin?.email || 'obaidullahshaikh07@gmail.com'}
                 </p>
-                <span className="inline-block mt-1 text-[9px] font-mono font-bold px-1.5 py-0.2 rounded bg-accent-subtle text-accent border border-accent/20">
+                <span className="inline-block mt-1 text-[9px] font-mono font-bold px-1.5 py-0.5 rounded bg-indigo-50 text-indigo-700 border border-indigo-100">
                   {admin?.role || 'SUPER_ADMIN'}
                 </span>
               </div>
 
+              {onOpenProfile && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowAccountMenu(false);
+                    onOpenProfile();
+                  }}
+                  className="w-full flex items-center gap-2 px-3 py-1.5 text-xs text-neutral-700 hover:text-neutral-900 hover:bg-neutral-50 rounded-lg transition-colors text-left"
+                >
+                  <Shield size={13} />
+                  <span>Admin Profile</span>
+                </button>
+              )}
+
               <Link
                 href="/team-draw"
-                className="w-full flex items-center gap-2 px-3 py-1.5 text-xs text-secondaryText hover:text-primaryText hover:bg-slate-50 rounded-lg transition-colors"
+                className="w-full flex items-center gap-2 px-3 py-1.5 text-xs text-neutral-700 hover:text-neutral-900 hover:bg-neutral-50 rounded-lg transition-colors"
                 target="_blank"
                 onClick={() => setShowAccountMenu(false)}
               >
@@ -216,11 +257,12 @@ export default function AdminHeader({
               </Link>
 
               <button
+                type="button"
                 onClick={() => {
                   setShowAccountMenu(false);
-                  onLogout();
+                  if (onLogout) onLogout();
                 }}
-                className="w-full flex items-center gap-2 px-3 py-1.5 text-xs text-rose-600 hover:bg-rose-50 rounded-lg font-semibold transition-colors mt-1 cursor-pointer"
+                className="w-full flex items-center gap-2 px-3 py-1.5 text-xs text-red-600 hover:bg-red-50 rounded-lg font-semibold transition-colors mt-1 cursor-pointer"
               >
                 <LogOut size={13} />
                 <span>Log Out</span>

@@ -200,26 +200,36 @@ function DashboardContent() {
         {/* Persistent 260px Left Sidebar */}
         <AdminSidebar
           activeTab={activeTab}
+          activeView={activeTab}
           onNavigate={handleNavigate}
+          setActiveView={handleNavigate}
           currentEvent={currentEvent}
+          events={events}
+          onCreateEvent={() => setShowEventWizard(true)}
+          onOpenCreateEvent={() => setShowEventWizard(true)}
           mobileOpen={mobileNavOpen}
+          setMobileOpen={setMobileNavOpen}
           onCloseMobile={() => setMobileNavOpen(false)}
           onLogout={handleLogout}
           admin={admin}
         />
 
         {/* Main Content Area */}
-        <div className="flex-1 flex flex-col min-w-0 md:pl-[260px]">
+        <div className="flex-1 flex flex-col min-w-0 lg:pl-[260px]">
           {/* Slim Top Header */}
           <AdminHeader
             activeTab={activeTab}
+            activeView={activeTab}
             events={events}
             selectedEventId={selectedEventId}
             onSelectEvent={handleSelectEvent}
             currentEvent={currentEvent}
             admin={admin}
+            setMobileOpen={setMobileNavOpen}
             onOpenMobileNav={() => setMobileNavOpen(true)}
             onHeaderAction={handleHeaderAction}
+            onOpenCreateEvent={() => setShowEventWizard(true)}
+            onCreateEvent={() => setShowEventWizard(true)}
             onLogout={handleLogout}
             onOpenProfile={() => setShowProfileModal(true)}
           />
@@ -267,7 +277,7 @@ function DashboardContent() {
               />
             )}
 
-            {activeTab === 'formation' && (
+            {(activeTab === 'formation' || activeTab === 'generate') && (
               <TeamFormationView
                 currentEvent={currentEvent}
                 onRefresh={() => {

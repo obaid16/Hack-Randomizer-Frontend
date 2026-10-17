@@ -14,7 +14,7 @@ async function runAcceptance() {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
-      email: 'obaidullshaikh07@gmail.com',
+      email: 'obaidullahshaikh07@gmail.com',
       password: process.env.ADMIN_PASSWORD || 'ubaid@231006'
     })
   });

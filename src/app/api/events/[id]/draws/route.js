@@ -8,7 +8,8 @@ export async function GET(request, context) {
 
     return NextResponse.json({
       success: true,
-      versions
+      versions,
+      draws: versions
     });
   } catch (err) {
     return NextResponse.json(

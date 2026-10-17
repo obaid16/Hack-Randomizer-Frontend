@@ -43,11 +43,11 @@ if (!cachedConnection) {
  * Connects to MongoDB Atlas with connection caching and timeout limits.
  * MongoDB Atlas is the sole authoritative storage.
  */
+const DEFAULT_MONGODB_URI =
+  'mongodb://ubaid:Ubaid2310@ac-osvmkej-shard-00-00.qgde3ni.mongodb.net:27017,ac-osvmkej-shard-00-01.qgde3ni.mongodb.net:27017,ac-osvmkej-shard-00-02.qgde3ni.mongodb.net:27017/?ssl=true&replicaSet=atlas-12823l-shard-0&authSource=admin';
+
 async function connectToDatabase() {
-  const uri = process.env.MONGODB_URI || process.env.MONGO_URI || process.env.DATABASE_URL;
-  if (!uri) {
-    throw new Error('MONGODB_URI is not configured in Vercel. Please add MONGODB_URI in Vercel Dashboard -> Settings -> Environment Variables.');
-  }
+  const uri = process.env.MONGODB_URI || process.env.MONGO_URI || process.env.DATABASE_URL || DEFAULT_MONGODB_URI;
 
   if (cachedConnection.conn && mongoose.connection.readyState === 1) {
     return cachedConnection.conn;

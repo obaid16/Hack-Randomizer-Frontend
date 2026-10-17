@@ -9,15 +9,20 @@ if (!cachedConnection) {
   cachedConnection = global.mongoose = { conn: null, promise: null };
 }
 
+const DEFAULT_MONGODB_URI =
+  'mongodb://ubaid:Ubaid2310@ac-osvmkej-shard-00-00.qgde3ni.mongodb.net:27017,ac-osvmkej-shard-00-01.qgde3ni.mongodb.net:27017,ac-osvmkej-shard-00-02.qgde3ni.mongodb.net:27017/?ssl=true&replicaSet=atlas-12823l-shard-0&authSource=admin';
+
 function getMongoUri() {
-  return process.env.MONGODB_URI || process.env.MONGO_URI || process.env.DATABASE_URL || '';
+  return (
+    process.env.MONGODB_URI ||
+    process.env.MONGO_URI ||
+    process.env.DATABASE_URL ||
+    DEFAULT_MONGODB_URI
+  );
 }
 
 async function getDb() {
   const uri = getMongoUri();
-  if (!uri) {
-    throw new Error('MONGODB_URI is not configured in Vercel. Please add MONGODB_URI in Vercel Dashboard -> Settings -> Environment Variables.');
-  }
 
   if (cachedConnection.conn && mongoose.connection.readyState === 1) {
     return cachedConnection.conn;

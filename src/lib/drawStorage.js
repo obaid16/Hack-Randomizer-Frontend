@@ -44,9 +44,9 @@ if (!cachedConnection) {
  * MongoDB Atlas is the sole authoritative storage.
  */
 async function connectToDatabase() {
-  const uri = process.env.MONGODB_URI;
+  const uri = process.env.MONGODB_URI || process.env.MONGO_URI || process.env.DATABASE_URL;
   if (!uri) {
-    throw new Error('MONGODB_URI environment variable is not configured.');
+    throw new Error('MONGODB_URI is not configured in Vercel. Please add MONGODB_URI in Vercel Dashboard -> Settings -> Environment Variables.');
   }
 
   if (cachedConnection.conn && mongoose.connection.readyState === 1) {

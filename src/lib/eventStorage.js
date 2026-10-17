@@ -103,8 +103,8 @@ if (!cachedConn) {
 }
 
 async function connectToDatabase() {
-  const uri = process.env.MONGODB_URI;
-  if (!uri) throw new Error('MONGODB_URI environment variable is not configured.');
+  const uri = process.env.MONGODB_URI || process.env.MONGO_URI || process.env.DATABASE_URL;
+  if (!uri) throw new Error('MONGODB_URI is not configured in Vercel. Please add MONGODB_URI in Vercel Dashboard -> Settings -> Environment Variables.');
 
   if (cachedConn.conn && mongoose.connection.readyState === 1) {
     return cachedConn.conn;

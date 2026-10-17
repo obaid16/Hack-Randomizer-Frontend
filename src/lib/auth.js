@@ -9,9 +9,15 @@ if (!cachedConnection) {
   cachedConnection = global.mongoose = { conn: null, promise: null };
 }
 
+function getMongoUri() {
+  return process.env.MONGODB_URI || process.env.MONGO_URI || process.env.DATABASE_URL || '';
+}
+
 async function getDb() {
-  const uri = process.env.MONGODB_URI;
-  if (!uri) throw new Error('MONGODB_URI is not configured');
+  const uri = getMongoUri();
+  if (!uri) {
+    throw new Error('MONGODB_URI is not configured in Vercel. Please add MONGODB_URI in Vercel Dashboard -> Settings -> Environment Variables.');
+  }
 
   if (cachedConnection.conn && mongoose.connection.readyState === 1) {
     return cachedConnection.conn;

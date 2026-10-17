@@ -108,7 +108,7 @@ export async function saveDrawRecord(drawData) {
   const savedDoc = await DrawModel.findOneAndUpdate(
     { drawId: normalized.drawId },
     normalized,
-    { upsert: true, new: true, setDefaultsOnInsert: true }
+    { upsert: true, returnDocument: 'after', new: true, setDefaultsOnInsert: true }
   ).lean();
 
   return {

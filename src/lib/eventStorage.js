@@ -21,6 +21,10 @@ const EventSchema = new mongoose.Schema(
       enum: Object.values(EVENT_STATUS),
       default: EVENT_STATUS.ACTIVE
     },
+    eventType: { type: String, default: 'Hackathon' },
+    venue: { type: String, default: '' },
+    timezone: { type: String, default: 'Asia/Kolkata' },
+    bannerUrl: { type: String, default: '' },
     startDate: { type: String, default: '' },
     endDate: { type: String, default: '' },
     isTemplate: { type: Boolean, default: false },
@@ -31,7 +35,8 @@ const EventSchema = new mongoose.Schema(
         description: { type: String, default: '' },
         roleTag: { type: String, default: 'Member' },
         countPerTeam: { type: Number, default: 1 },
-        isUniqueMentor: { type: Boolean, default: false }
+        isUniqueMentor: { type: Boolean, default: false },
+        isActive: { type: Boolean, default: true }
       }
     ],
     rules: {
@@ -50,10 +55,15 @@ const EventSchema = new mongoose.Schema(
     participants: [
       {
         id: { type: String, required: true },
+        participantId: { type: String, default: '' },
         name: { type: String, required: true },
         email: { type: String, default: '' },
         categoryId: { type: String, required: true },
         categoryName: { type: String, default: '' },
+        skills: { type: Array, default: [] },
+        institution: { type: String, default: '' },
+        phone: { type: String, default: '' },
+        notes: { type: String, default: '' },
         status: { type: String, default: 'ACTIVE' },
         createdAt: { type: Date, default: Date.now }
       }
@@ -292,11 +302,15 @@ export async function createEvent(eventData, adminEmail = 'Admin') {
     name: eventData.name,
     description: eventData.description || '',
     status: eventData.status || EVENT_STATUS.DRAFT,
+    eventType: eventData.eventType || 'Hackathon',
+    venue: eventData.venue || '',
+    timezone: eventData.timezone || 'Asia/Kolkata',
+    bannerUrl: eventData.bannerUrl || '',
     startDate: eventData.startDate || '',
     endDate: eventData.endDate || '',
     isTemplate: Boolean(eventData.isTemplate),
     categories: eventData.categories || [
-      { id: 'cat_participant', name: 'Participant', description: 'General participant', countPerTeam: 4, roleTag: 'Member' }
+      { id: 'cat_participant', name: 'Participant', description: 'General participant', countPerTeam: 4, roleTag: 'Member', isUniqueMentor: false, isActive: true }
     ],
     rules: eventData.rules || {
       teamSize: 4,
@@ -379,6 +393,10 @@ export async function updateEvent(eventId, updates, adminEmail = 'Admin') {
 
   if (updates.name) event.name = updates.name;
   if (updates.description !== undefined) event.description = updates.description;
+  if (updates.eventType !== undefined) event.eventType = updates.eventType;
+  if (updates.venue !== undefined) event.venue = updates.venue;
+  if (updates.timezone !== undefined) event.timezone = updates.timezone;
+  if (updates.bannerUrl !== undefined) event.bannerUrl = updates.bannerUrl;
   if (updates.startDate !== undefined) event.startDate = updates.startDate;
   if (updates.endDate !== undefined) event.endDate = updates.endDate;
   if (updates.categories) event.categories = updates.categories;
@@ -420,8 +438,8 @@ export async function deleteEvent(eventId, adminEmail = 'Admin') {
  * Participant Management within an Event.
  */
 export async function addParticipant(eventId, participantData, adminEmail = 'Admin') {
-  if (!participantData.name || !participantData.categoryId) {
-    throw new Error('Participant name and category are required.');
+  if (!participantData.name || !participantData.name.trim()) {
+    throw new Error('Participant full name is required.');
   }
 
   await connectToDatabase();
@@ -433,15 +451,50 @@ export async function addParticipant(eventId, participantData, adminEmail = 'Adm
     throw new Error('Cannot modify participants of an ARCHIVED event.');
   }
 
-  const category = event.categories.find((c) => c.id === participantData.categoryId);
-  const categoryName = category ? category.name : participantData.categoryId;
+  const trimmedName = participantData.name.trim();
+
+  // Resolve category by ID or name (case-insensitive)
+  const catInput = (participantData.categoryId || '').toString().trim().toLowerCase();
+  let category = event.categories.find(
+    (c) => c.id.toLowerCase() === catInput || c.name.toLowerCase().trim() === catInput
+  );
+  if (!category && event.categories.length > 0) {
+    category = event.categories.find((c) => c.isActive !== false) || event.categories[0];
+  }
+
+  const categoryId = category ? category.id : 'cat_general';
+  const categoryName = category ? category.name : 'Participant';
+
+  // Check unique participantId if supplied
+  const pId = participantData.participantId?.trim() || '';
+  if (pId) {
+    const existsId = event.participants.some(
+      (p) => p.participantId && p.participantId.toLowerCase() === pId.toLowerCase()
+    );
+    if (existsId) {
+      throw new Error(`Participant ID "${pId}" is already assigned to another participant in this event.`);
+    }
+  }
+
+  // Parse skills
+  let skills = [];
+  if (Array.isArray(participantData.skills)) {
+    skills = participantData.skills.map((s) => s.toString().trim()).filter(Boolean);
+  } else if (typeof participantData.skills === 'string') {
+    skills = participantData.skills.split(',').map((s) => s.trim()).filter(Boolean);
+  }
 
   const newParticipant = {
     id: `part_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 6)}`,
-    name: participantData.name.trim(),
+    participantId: pId,
+    name: trimmedName,
     email: participantData.email?.trim() || '',
-    categoryId: participantData.categoryId,
+    categoryId,
     categoryName,
+    skills,
+    institution: participantData.institution?.trim() || '',
+    phone: participantData.phone?.trim() || '',
+    notes: participantData.notes?.trim() || '',
     status: participantData.status || 'ACTIVE',
     createdAt: new Date()
   };
@@ -449,7 +502,7 @@ export async function addParticipant(eventId, participantData, adminEmail = 'Adm
   event.participants.push(newParticipant);
   event.auditLogs.push({
     action: 'PARTICIPANT_ADDED',
-    details: `Added ${newParticipant.name} (${categoryName})`,
+    details: `Added ${newParticipant.name} (${categoryName})${pId ? ` [ID: ${pId}]` : ''}`,
     userEmail: adminEmail
   });
 
@@ -470,13 +523,45 @@ export async function updateParticipant(eventId, participantId, updates, adminEm
   const part = event.participants.find((p) => p.id === participantId);
   if (!part) throw new Error('Participant not found');
 
-  if (updates.name) part.name = updates.name.trim();
+  if (updates.name && updates.name.trim()) part.name = updates.name.trim();
   if (updates.email !== undefined) part.email = updates.email.trim();
   if (updates.status) part.status = updates.status;
+  if (updates.institution !== undefined) part.institution = updates.institution.trim();
+  if (updates.phone !== undefined) part.phone = updates.phone.trim();
+  if (updates.notes !== undefined) part.notes = updates.notes.trim();
+
+  if (updates.participantId !== undefined) {
+    const pId = updates.participantId.trim();
+    if (pId && pId !== part.participantId) {
+      const existsId = event.participants.some(
+        (p) => p.id !== participantId && p.participantId && p.participantId.toLowerCase() === pId.toLowerCase()
+      );
+      if (existsId) {
+        throw new Error(`Participant ID "${pId}" is already used by another participant.`);
+      }
+    }
+    part.participantId = pId;
+  }
+
+  if (updates.skills !== undefined) {
+    if (Array.isArray(updates.skills)) {
+      part.skills = updates.skills.map((s) => s.toString().trim()).filter(Boolean);
+    } else if (typeof updates.skills === 'string') {
+      part.skills = updates.skills.split(',').map((s) => s.trim()).filter(Boolean);
+    }
+  }
+
   if (updates.categoryId) {
-    part.categoryId = updates.categoryId;
-    const cat = event.categories.find((c) => c.id === updates.categoryId);
-    if (cat) part.categoryName = cat.name;
+    const catInput = updates.categoryId.toString().trim().toLowerCase();
+    const cat = event.categories.find(
+      (c) => c.id.toLowerCase() === catInput || c.name.toLowerCase().trim() === catInput
+    );
+    if (cat) {
+      part.categoryId = cat.id;
+      part.categoryName = cat.name;
+    } else {
+      part.categoryId = updates.categoryId;
+    }
   }
 
   event.auditLogs.push({
@@ -527,19 +612,51 @@ export async function bulkImportParticipants(eventId, participantsList, adminEma
     throw new Error('Cannot import participants to an ARCHIVED event.');
   }
 
-  const catMap = new Map(event.categories.map((c) => [c.id, c.name]));
-  const defaultCatId = event.categories[0]?.id || 'cat_default';
+  const catById = new Map(event.categories.map((c) => [c.id.toLowerCase(), c]));
+  const catByName = new Map(event.categories.map((c) => [c.name.toLowerCase().trim(), c]));
+  const defaultCat = event.categories[0] || { id: 'cat_general', name: 'Participant' };
+
+  const existingIds = new Set(
+    event.participants.map((p) => (p.participantId || '').toLowerCase()).filter(Boolean)
+  );
 
   const imported = [];
+  let skipped = 0;
+
   for (const raw of participantsList) {
-    if (!raw.name || !raw.name.trim()) continue;
-    const catId = raw.categoryId && catMap.has(raw.categoryId) ? raw.categoryId : defaultCatId;
+    if (!raw.name || !raw.name.trim()) {
+      skipped++;
+      continue;
+    }
+
+    const rawCat = (raw.categoryId || raw.category || '').toString().trim().toLowerCase();
+    const matchedCat = catById.get(rawCat) || catByName.get(rawCat) || defaultCat;
+
+    const pId = (raw.participantId || raw.id || '').toString().trim();
+    if (pId && existingIds.has(pId.toLowerCase())) {
+      skipped++;
+      continue;
+    }
+    if (pId) existingIds.add(pId.toLowerCase());
+
+    let skills = [];
+    if (Array.isArray(raw.skills)) {
+      skills = raw.skills.map((s) => s.toString().trim()).filter(Boolean);
+    } else if (typeof raw.skills === 'string') {
+      skills = raw.skills.split(',').map((s) => s.trim()).filter(Boolean);
+    }
+
     imported.push({
       id: `part_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 6)}`,
+      participantId: pId,
       name: raw.name.trim(),
       email: raw.email?.trim() || '',
-      categoryId: catId,
-      categoryName: catMap.get(catId) || 'Participant',
+      categoryId: matchedCat.id,
+      categoryName: matchedCat.name,
+      skills,
+      institution: raw.institution?.trim() || raw.college?.trim() || '',
+      phone: raw.phone?.trim() || '',
+      notes: raw.notes?.trim() || '',
       status: 'ACTIVE',
       createdAt: new Date()
     });
@@ -548,12 +665,12 @@ export async function bulkImportParticipants(eventId, participantsList, adminEma
   event.participants.push(...imported);
   event.auditLogs.push({
     action: 'BULK_IMPORT',
-    details: `Bulk imported ${imported.length} participants.`,
+    details: `Bulk imported ${imported.length} participants (${skipped} skipped).`,
     userEmail: adminEmail
   });
 
   await event.save();
-  return { success: true, count: imported.length };
+  return { success: true, count: imported.length, skipped };
 }
 
 /**

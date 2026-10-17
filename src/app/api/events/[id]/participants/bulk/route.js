@@ -7,13 +7,14 @@ export async function POST(request, context) {
     const admin = await verifyAdminRequest(request);
     const params = await Promise.resolve(context?.params || {});
     const body = await request.json();
-
-    const result = await bulkImportParticipants(params.id, body.participants || [], admin.email);
+    const list = Array.isArray(body) ? body : (body.participants || []);
+    const result = await bulkImportParticipants(params.id, list, admin.email);
 
     return NextResponse.json({
       success: true,
-      message: `Successfully imported ${result.count} participants.`,
-      count: result.count
+      message: `Successfully imported ${result.count} participants (${result.skipped || 0} skipped).`,
+      count: result.count,
+      skipped: result.skipped || 0
     });
   } catch (err) {
     const isAuth = err.message?.includes('Authentication') || err.message?.includes('expired');

@@ -14,7 +14,10 @@ import {
   AlertCircle,
   Plus,
   Trash2,
-  Layers
+  Layers,
+  MapPin,
+  Clock,
+  Zap
 } from 'lucide-react';
 import { eventsApi } from '@/lib/api';
 
@@ -27,19 +30,21 @@ const EVENT_TYPES = [
   'Custom Event'
 ];
 
-export default function EventWizardModal({ isOpen, onClose, onSuccess }) {
+export default function EventWizardModal({ isOpen, onClose, onSuccess, onCreated }) {
   const [currentStep, setCurrentStep] = useState(1);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState(null);
+
+  const todayStr = new Date().toISOString().split('T')[0];
 
   // Form State
   const [basicInfo, setBasicInfo] = useState({
     name: '',
     description: '',
     eventType: 'Hackathon',
-    startDate: '',
-    endDate: '',
-    venue: 'Online / Campus',
+    startDate: todayStr,
+    endDate: todayStr,
+    venue: 'Main Campus / Hybrid',
     timezone: 'Asia/Kolkata'
   });
 
@@ -49,7 +54,7 @@ export default function EventWizardModal({ isOpen, onClose, onSuccess }) {
     { id: 'cat_mentor', name: 'Technical Mentor', roleTag: 'Technical Guide', countPerTeam: 1, isUniqueMentor: true }
   ]);
 
-  const [participantChoice, setParticipantChoice] = useState('manual_after'); // 'manual_after' | 'csv_after' | 'empty'
+  const [participantChoice, setParticipantChoice] = useState('manual_after');
 
   const [teamRules, setTeamRules] = useState({
     requestedTeams: 10,
@@ -129,13 +134,7 @@ export default function EventWizardModal({ isOpen, onClose, onSuccess }) {
     setCurrentStep((prev) => Math.max(prev - 1, 1));
   };
 
-  // Final Submission
-  const handleSubmit = async () => {
-    if (!validateStep(1) || !validateStep(2) || !validateStep(4)) return;
-
-    setSubmitting(true);
-    setError(null);
-
+  const buildPayload = () => {
     const composition = categories.map((c) => ({
       categoryId: c.id,
       count: c.countPerTeam || 1,
@@ -144,7 +143,7 @@ export default function EventWizardModal({ isOpen, onClose, onSuccess }) {
 
     const calculatedTeamSize = composition.reduce((acc, c) => acc + c.count, 0) || teamRules.teamSize;
 
-    const payload = {
+    return {
       name: basicInfo.name.trim(),
       description: basicInfo.description.trim(),
       eventType: basicInfo.eventType,
@@ -162,11 +161,20 @@ export default function EventWizardModal({ isOpen, onClose, onSuccess }) {
         composition
       }
     };
+  };
+
+  // Quick Create (Direct from Step 1)
+  const handleQuickCreate = async () => {
+    if (!validateStep(1)) return;
+    setSubmitting(true);
+    setError(null);
 
     try {
+      const payload = buildPayload();
       const res = await eventsApi.create(payload);
-      if (res.success) {
-        onSuccess(res.event);
+      if (res.success && res.event) {
+        if (onCreated) onCreated(res.event);
+        if (onSuccess) onSuccess(res.event);
         onClose();
       } else {
         setError(res.message || 'Failed to create event.');
@@ -178,16 +186,51 @@ export default function EventWizardModal({ isOpen, onClose, onSuccess }) {
     }
   };
 
+  // Final Wizard Submission
+  const handleSubmit = async () => {
+    if (!validateStep(1) || !validateStep(2) || !validateStep(4)) return;
+
+    setSubmitting(true);
+    setError(null);
+
+    try {
+      const payload = buildPayload();
+      const res = await eventsApi.create(payload);
+      if (res.success && res.event) {
+        if (onCreated) onCreated(res.event);
+        if (onSuccess) onSuccess(res.event);
+        onClose();
+      } else {
+        setError(res.message || 'Failed to create event.');
+      }
+    } catch (err) {
+      setError(err.message || 'Error saving event. Please check your network connection.');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const stepsList = [
+    { num: 1, label: 'Basic Info' },
+    { num: 2, label: 'Categories' },
+    { num: 3, label: 'Participants' },
+    { num: 4, label: 'Rules' },
+    { num: 5, label: 'Review' }
+  ];
+
   return (
-    <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-xs flex items-center justify-center p-4 overflow-y-auto">
-      <div className="bg-white rounded-2xl border border-border max-w-2xl w-full shadow-2xl overflow-hidden my-8">
+    <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-xs flex items-center justify-center p-4 overflow-y-auto animate-in fade-in duration-150">
+      <div className="bg-white rounded-2xl border border-neutral-200 max-w-2xl w-full shadow-2xl overflow-hidden my-8 flex flex-col max-h-[90vh]">
         {/* Header */}
-        <div className="px-6 py-4 border-b border-border/80 flex items-center justify-between bg-canvas/60">
+        <div className="px-6 py-4 border-b border-neutral-200 flex items-center justify-between bg-neutral-50/80">
           <div>
-            <span className="text-[10px] font-mono font-bold text-accent uppercase tracking-wider block">
-              STEP {currentStep} OF 5
-            </span>
-            <h2 className="font-display font-bold text-base text-primaryText">
+            <div className="flex items-center gap-2">
+              <span className="w-2 h-2 rounded-full bg-[#5557D9]" />
+              <span className="text-[10px] font-mono font-bold text-[#5557D9] uppercase tracking-wider block">
+                STEP {currentStep} OF 5 · {stepsList[currentStep - 1]?.label}
+              </span>
+            </div>
+            <h2 className="font-bold text-base text-neutral-900 mt-0.5">
               {currentStep === 1 && 'Basic Event Information'}
               {currentStep === 2 && 'Define Categories & Roles'}
               {currentStep === 3 && 'Participant Roster Setup'}
@@ -197,20 +240,21 @@ export default function EventWizardModal({ isOpen, onClose, onSuccess }) {
           </div>
 
           <button
+            type="button"
             onClick={onClose}
-            className="p-1.5 rounded-lg text-secondaryText hover:text-primaryText hover:bg-slate-100 cursor-pointer"
+            className="p-1.5 rounded-lg text-neutral-400 hover:text-neutral-700 hover:bg-neutral-100 cursor-pointer transition-colors"
           >
             <X size={18} />
           </button>
         </div>
 
-        {/* Step Progress Bar */}
-        <div className="h-1 bg-slate-100 flex">
-          {[1, 2, 3, 4, 5].map((s) => (
+        {/* Step Progress Indicator Bar */}
+        <div className="bg-neutral-100 flex h-1">
+          {stepsList.map((s) => (
             <div
-              key={s}
+              key={s.num}
               className={`h-full flex-1 transition-all duration-300 ${
-                s <= currentStep ? 'bg-accent' : 'bg-slate-200'
+                s.num <= currentStep ? 'bg-[#5557D9]' : 'bg-neutral-200'
               }`}
             />
           ))}
@@ -218,87 +262,99 @@ export default function EventWizardModal({ isOpen, onClose, onSuccess }) {
 
         {/* Error Alert */}
         {error && (
-          <div className="m-6 mb-0 p-3 rounded-xl bg-rose-50 border border-rose-200 text-rose-700 text-xs flex items-center gap-2">
-            <AlertCircle size={15} className="shrink-0 text-rose-600" />
-            <span>{error}</span>
+          <div className="mx-6 mt-4 p-3 rounded-xl bg-red-50 border border-red-200 text-red-700 text-xs flex items-center gap-2">
+            <AlertCircle size={15} className="shrink-0 text-red-600" />
+            <span className="font-medium">{error}</span>
           </div>
         )}
 
         {/* Modal Body */}
-        <div className="p-6 max-h-[65vh] overflow-y-auto">
+        <div className="p-6 overflow-y-auto flex-1">
           {/* STEP 1: Basic Information */}
           {currentStep === 1 && (
             <div className="space-y-4">
+              <div className="p-3 bg-indigo-50/60 border border-indigo-100 rounded-xl flex items-center justify-between gap-3 text-xs text-indigo-900">
+                <div className="flex items-center gap-2">
+                  <Zap size={16} className="text-[#5557D9] shrink-0" />
+                  <span>
+                    Need to launch quickly? Fill in the event name and click <strong>Quick Create</strong> to use recommended defaults.
+                  </span>
+                </div>
+              </div>
+
               <div>
-                <label className="text-xs font-bold text-primaryText block mb-1">
-                  Event Name <span className="text-rose-500">*</span>
+                <label className="text-xs font-bold text-neutral-800 block mb-1">
+                  Event Name <span className="text-red-500">*</span>
                 </label>
                 <input
                   type="text"
-                  placeholder="e.g. AI Innovation Sprint 2027"
+                  placeholder="e.g. Hackathon 2027 · Code & Conquer"
                   value={basicInfo.name}
                   onChange={(e) => setBasicInfo({ ...basicInfo, name: e.target.value })}
-                  className="w-full px-3 py-2 rounded-xl border border-border bg-canvas text-xs focus:ring-1 focus:ring-accent focus:outline-hidden"
+                  className="w-full px-3 py-2 rounded-xl border border-neutral-200 bg-white text-xs font-semibold text-neutral-900 focus:ring-2 focus:ring-[#5557D9]/20 focus:border-[#5557D9] focus:outline-none"
+                  autoFocus
                   required
-                />
-              </div>
-
-              <div>
-                <label className="text-xs font-bold text-primaryText block mb-1">Event Type</label>
-                <select
-                  value={basicInfo.eventType}
-                  onChange={(e) => setBasicInfo({ ...basicInfo, eventType: e.target.value })}
-                  className="w-full px-3 py-2 rounded-xl border border-border bg-canvas text-xs focus:ring-1 focus:ring-accent focus:outline-hidden cursor-pointer"
-                >
-                  {EVENT_TYPES.map((type) => (
-                    <option key={type} value={type}>
-                      {type}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <div>
-                <label className="text-xs font-bold text-primaryText block mb-1">Short Description</label>
-                <textarea
-                  rows={2}
-                  placeholder="Summarize event purpose, targets, and collaboration format..."
-                  value={basicInfo.description}
-                  onChange={(e) => setBasicInfo({ ...basicInfo, description: e.target.value })}
-                  className="w-full px-3 py-2 rounded-xl border border-border bg-canvas text-xs focus:ring-1 focus:ring-accent focus:outline-hidden"
                 />
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
-                  <label className="text-xs font-bold text-primaryText block mb-1">Start Date</label>
-                  <input
-                    type="date"
-                    value={basicInfo.startDate}
-                    onChange={(e) => setBasicInfo({ ...basicInfo, startDate: e.target.value })}
-                    className="w-full px-3 py-2 rounded-xl border border-border bg-canvas text-xs focus:ring-1 focus:ring-accent focus:outline-hidden"
-                  />
+                  <label className="text-xs font-bold text-neutral-800 block mb-1">Event Type</label>
+                  <select
+                    value={basicInfo.eventType}
+                    onChange={(e) => setBasicInfo({ ...basicInfo, eventType: e.target.value })}
+                    className="w-full px-3 py-2 rounded-xl border border-neutral-200 bg-white text-xs text-neutral-800 focus:ring-2 focus:ring-[#5557D9]/20 focus:border-[#5557D9] focus:outline-none cursor-pointer"
+                  >
+                    {EVENT_TYPES.map((type) => (
+                      <option key={type} value={type}>
+                        {type}
+                      </option>
+                    ))}
+                  </select>
                 </div>
+
                 <div>
-                  <label className="text-xs font-bold text-primaryText block mb-1">End Date</label>
+                  <label className="text-xs font-bold text-neutral-800 block mb-1">Venue / Format</label>
                   <input
-                    type="date"
-                    value={basicInfo.endDate}
-                    onChange={(e) => setBasicInfo({ ...basicInfo, endDate: e.target.value })}
-                    className="w-full px-3 py-2 rounded-xl border border-border bg-canvas text-xs focus:ring-1 focus:ring-accent focus:outline-hidden"
+                    type="text"
+                    placeholder="e.g. Main Auditorium / Campus / Virtual"
+                    value={basicInfo.venue}
+                    onChange={(e) => setBasicInfo({ ...basicInfo, venue: e.target.value })}
+                    className="w-full px-3 py-2 rounded-xl border border-neutral-200 bg-white text-xs text-neutral-800 focus:ring-2 focus:ring-[#5557D9]/20 focus:border-[#5557D9] focus:outline-none"
                   />
                 </div>
               </div>
 
               <div>
-                <label className="text-xs font-bold text-primaryText block mb-1">Venue / Format</label>
-                <input
-                  type="text"
-                  placeholder="e.g. Main Auditorium / Virtual Campus"
-                  value={basicInfo.venue}
-                  onChange={(e) => setBasicInfo({ ...basicInfo, venue: e.target.value })}
-                  className="w-full px-3 py-2 rounded-xl border border-border bg-canvas text-xs focus:ring-1 focus:ring-accent focus:outline-hidden"
+                <label className="text-xs font-bold text-neutral-800 block mb-1">Short Description</label>
+                <textarea
+                  rows={2}
+                  placeholder="Summarize event theme, goals, and team formation requirements..."
+                  value={basicInfo.description}
+                  onChange={(e) => setBasicInfo({ ...basicInfo, description: e.target.value })}
+                  className="w-full px-3 py-2 rounded-xl border border-neutral-200 bg-white text-xs text-neutral-800 focus:ring-2 focus:ring-[#5557D9]/20 focus:border-[#5557D9] focus:outline-none resize-none"
                 />
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="text-xs font-bold text-neutral-800 block mb-1">Start Date</label>
+                  <input
+                    type="date"
+                    value={basicInfo.startDate}
+                    onChange={(e) => setBasicInfo({ ...basicInfo, startDate: e.target.value })}
+                    className="w-full px-3 py-2 rounded-xl border border-neutral-200 bg-white text-xs text-neutral-800 focus:ring-2 focus:ring-[#5557D9]/20 focus:border-[#5557D9] focus:outline-none"
+                  />
+                </div>
+                <div>
+                  <label className="text-xs font-bold text-neutral-800 block mb-1">End Date</label>
+                  <input
+                    type="date"
+                    value={basicInfo.endDate}
+                    onChange={(e) => setBasicInfo({ ...basicInfo, endDate: e.target.value })}
+                    className="w-full px-3 py-2 rounded-xl border border-neutral-200 bg-white text-xs text-neutral-800 focus:ring-2 focus:ring-[#5557D9]/20 focus:border-[#5557D9] focus:outline-none"
+                  />
+                </div>
               </div>
             </div>
           )}
@@ -306,150 +362,123 @@ export default function EventWizardModal({ isOpen, onClose, onSuccess }) {
           {/* STEP 2: Categories & Roles */}
           {currentStep === 2 && (
             <div className="space-y-4">
-              <p className="text-xs text-secondaryText leading-relaxed">
-                Define the participant pools and the designated roles they will fulfill on formed teams.
-              </p>
+              <div className="flex items-center justify-between">
+                <p className="text-xs text-neutral-500">
+                  Define participant classifications and quota per team for balanced team generation.
+                </p>
+                <button
+                  type="button"
+                  onClick={handleAddCategory}
+                  className="px-2.5 py-1 rounded-lg bg-neutral-100 hover:bg-neutral-200 text-xs font-semibold text-neutral-700 flex items-center gap-1 cursor-pointer transition-colors"
+                >
+                  <Plus size={13} />
+                  <span>Add Category</span>
+                </button>
+              </div>
 
               <div className="space-y-3">
                 {categories.map((cat, idx) => (
                   <div
                     key={cat.id || idx}
-                    className="p-3 rounded-xl bg-canvas border border-border/80 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3"
+                    className="p-3.5 rounded-xl bg-neutral-50 border border-neutral-200 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3"
                   >
-                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 flex-1 w-full">
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 flex-1 w-full">
                       <div>
-                        <label className="text-[10px] font-mono text-secondaryText block">Category Name</label>
+                        <label className="text-[10px] font-semibold text-neutral-500 block mb-0.5">Category Name</label>
                         <input
                           type="text"
                           value={cat.name}
                           onChange={(e) => handleUpdateCategory(idx, 'name', e.target.value)}
-                          className="w-full px-2.5 py-1.5 rounded-lg border border-border bg-white text-xs font-semibold focus:outline-hidden"
+                          className="w-full px-2.5 py-1.5 rounded-lg border border-neutral-200 bg-white text-xs font-semibold text-neutral-900 focus:outline-none focus:border-[#5557D9]"
                         />
                       </div>
 
                       <div>
-                        <label className="text-[10px] font-mono text-secondaryText block">Role Label</label>
+                        <label className="text-[10px] font-semibold text-neutral-500 block mb-0.5">Role Label</label>
                         <input
                           type="text"
                           value={cat.roleTag}
                           onChange={(e) => handleUpdateCategory(idx, 'roleTag', e.target.value)}
-                          className="w-full px-2.5 py-1.5 rounded-lg border border-border bg-white text-xs focus:outline-hidden"
+                          className="w-full px-2.5 py-1.5 rounded-lg border border-neutral-200 bg-white text-xs text-neutral-800 focus:outline-none focus:border-[#5557D9]"
                         />
                       </div>
 
                       <div>
-                        <label className="text-[10px] font-mono text-secondaryText block">Quota / Team</label>
+                        <label className="text-[10px] font-semibold text-neutral-500 block mb-0.5">Quota / Team</label>
                         <input
                           type="number"
                           min={1}
                           max={10}
                           value={cat.countPerTeam}
                           onChange={(e) => handleUpdateCategory(idx, 'countPerTeam', Number(e.target.value))}
-                          className="w-full px-2.5 py-1.5 rounded-lg border border-border bg-white text-xs font-mono font-bold focus:outline-hidden"
+                          className="w-full px-2.5 py-1.5 rounded-lg border border-neutral-200 bg-white text-xs font-mono font-bold text-neutral-900 focus:outline-none focus:border-[#5557D9]"
                         />
                       </div>
                     </div>
 
-                    <div className="flex items-center gap-2 shrink-0">
-                      <label className="flex items-center gap-1.5 text-[11px] text-secondaryText cursor-pointer">
-                        <input
-                          type="checkbox"
-                          checked={cat.isUniqueMentor}
-                          onChange={(e) => handleUpdateCategory(idx, 'isUniqueMentor', e.target.checked)}
-                          className="rounded text-accent focus:ring-0"
-                        />
-                        <span>Unique 1:1</span>
-                      </label>
-
-                      {categories.length > 1 && (
-                        <button
-                          type="button"
-                          onClick={() => handleRemoveCategory(idx)}
-                          className="p-1.5 text-secondaryText hover:text-rose-600 rounded-md hover:bg-rose-50"
-                        >
-                          <Trash2 size={13} />
-                        </button>
-                      )}
-                    </div>
+                    <button
+                      type="button"
+                      onClick={() => handleRemoveCategory(idx)}
+                      disabled={categories.length <= 1}
+                      className="p-1.5 rounded-lg text-neutral-400 hover:text-red-600 hover:bg-red-50 disabled:opacity-30 cursor-pointer self-end sm:self-center transition-colors"
+                      title="Remove Category"
+                    >
+                      <Trash2 size={14} />
+                    </button>
                   </div>
                 ))}
               </div>
-
-              <button
-                type="button"
-                onClick={handleAddCategory}
-                className="w-full py-2 border border-dashed border-border text-xs font-bold text-accent hover:bg-accent-subtle/40 rounded-xl flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
-              >
-                <Plus size={14} />
-                <span>Add Another Category</span>
-              </button>
             </div>
           )}
 
-          {/* STEP 3: Participant Setup */}
+          {/* STEP 3: Participant Setup Choice */}
           {currentStep === 3 && (
             <div className="space-y-4">
-              <p className="text-xs text-secondaryText leading-relaxed">
-                Choose how you want to populate your participant roster. You can always add or import more participants later.
+              <p className="text-xs text-neutral-500">
+                Choose how you want to populate participants into this event after creation.
               </p>
 
               <div className="space-y-3">
-                <label
-                  onClick={() => setParticipantChoice('manual_after')}
-                  className={`p-4 rounded-xl border block cursor-pointer transition-colors ${
-                    participantChoice === 'manual_after'
-                      ? 'border-accent bg-accent-subtle/20'
-                      : 'border-border bg-canvas hover:bg-slate-50'
-                  }`}
-                >
-                  <div className="flex items-center justify-between">
+                {[
+                  {
+                    id: 'manual_after',
+                    title: 'Add Participants Manually in Admin Workspace',
+                    desc: 'Add individual participant names, emails, and student IDs directly via dashboard modals.'
+                  },
+                  {
+                    id: 'csv_after',
+                    title: 'Bulk Import from CSV File',
+                    desc: 'Upload a CSV roster with Name, Category, Email, and College ID with automated column validation.'
+                  },
+                  {
+                    id: 'empty',
+                    title: 'Start with an Empty Roster',
+                    desc: 'Initialize event with categories only; participants can be invited or registered later.'
+                  }
+                ].map((choice) => (
+                  <label
+                    key={choice.id}
+                    onClick={() => setParticipantChoice(choice.id)}
+                    className={`p-4 rounded-xl border flex items-start gap-3 cursor-pointer transition-all ${
+                      participantChoice === choice.id
+                        ? 'border-[#5557D9] bg-indigo-50/50 shadow-xs'
+                        : 'border-neutral-200 hover:border-neutral-300 bg-white'
+                    }`}
+                  >
+                    <input
+                      type="radio"
+                      name="participantChoice"
+                      value={choice.id}
+                      checked={participantChoice === choice.id}
+                      onChange={() => setParticipantChoice(choice.id)}
+                      className="mt-0.5 text-[#5557D9] focus:ring-[#5557D9]"
+                    />
                     <div>
-                      <span className="text-xs font-bold text-primaryText block">Add participants manually after creation</span>
-                      <span className="text-[11px] text-secondaryText">
-                        Start with an empty roster and add participants individually or via spreadsheet in the dashboard.
-                      </span>
+                      <span className="text-xs font-bold text-neutral-900 block">{choice.title}</span>
+                      <span className="text-xs text-neutral-500 mt-0.5 block leading-relaxed">{choice.desc}</span>
                     </div>
-                    {participantChoice === 'manual_after' && <CheckCircle2 size={16} className="text-accent" />}
-                  </div>
-                </label>
-
-                <label
-                  onClick={() => setParticipantChoice('csv_after')}
-                  className={`p-4 rounded-xl border block cursor-pointer transition-colors ${
-                    participantChoice === 'csv_after'
-                      ? 'border-accent bg-accent-subtle/20'
-                      : 'border-border bg-canvas hover:bg-slate-50'
-                  }`}
-                >
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <span className="text-xs font-bold text-primaryText block">Import participants via CSV after creation</span>
-                      <span className="text-[11px] text-secondaryText">
-                        Use the built-in CSV template to bulk upload students and mentors with validation.
-                      </span>
-                    </div>
-                    {participantChoice === 'csv_after' && <CheckCircle2 size={16} className="text-accent" />}
-                  </div>
-                </label>
-
-                <label
-                  onClick={() => setParticipantChoice('empty')}
-                  className={`p-4 rounded-xl border block cursor-pointer transition-colors ${
-                    participantChoice === 'empty'
-                      ? 'border-accent bg-accent-subtle/20'
-                      : 'border-border bg-canvas hover:bg-slate-50'
-                  }`}
-                >
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <span className="text-xs font-bold text-primaryText block">Start with completely empty configuration</span>
-                      <span className="text-[11px] text-secondaryText">
-                        Configure rules first and keep the event in DRAFT status until ready.
-                      </span>
-                    </div>
-                    {participantChoice === 'empty' && <CheckCircle2 size={16} className="text-accent" />}
-                  </div>
-                </label>
+                  </label>
+                ))}
               </div>
             </div>
           )}
@@ -457,115 +486,92 @@ export default function EventWizardModal({ isOpen, onClose, onSuccess }) {
           {/* STEP 4: Team Formation Rules */}
           {currentStep === 4 && (
             <div className="space-y-4">
+              <p className="text-xs text-neutral-500">
+                Specify formation targets and balancing constraints for the automated engine.
+              </p>
+
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div>
-                  <label className="text-xs font-bold text-primaryText block mb-1">Desired Number of Teams</label>
+                <div className="p-4 rounded-xl bg-neutral-50 border border-neutral-200">
+                  <label className="text-xs font-bold text-neutral-900 block mb-1">Target Number of Teams</label>
                   <input
                     type="number"
                     min={1}
+                    max={100}
                     value={teamRules.requestedTeams}
                     onChange={(e) => setTeamRules({ ...teamRules, requestedTeams: Number(e.target.value) })}
-                    className="w-full px-3 py-2 rounded-xl border border-border bg-canvas text-xs font-mono font-bold focus:ring-1 focus:ring-accent focus:outline-hidden"
+                    className="w-full px-3 py-2 rounded-lg border border-neutral-200 bg-white text-base font-bold text-neutral-900 focus:outline-none focus:border-[#5557D9]"
                   />
-                  <span className="text-[10px] text-secondaryText mt-0.5 block">
-                    Target complete units to generate
-                  </span>
+                  <p className="text-[11px] text-neutral-400 mt-1">Default target teams to form.</p>
                 </div>
 
-                <div>
-                  <label className="text-xs font-bold text-primaryText block mb-1">Members Per Team</label>
-                  <input
-                    type="number"
-                    min={1}
-                    value={categories.reduce((acc, c) => acc + (c.countPerTeam || 1), 0)}
-                    readOnly
-                    className="w-full px-3 py-2 rounded-xl border border-border bg-slate-100 text-xs font-mono font-bold text-secondaryText cursor-not-allowed"
-                  />
-                  <span className="text-[10px] text-secondaryText mt-0.5 block">
-                    Automatically calculated from category quotas
-                  </span>
+                <div className="p-4 rounded-xl bg-neutral-50 border border-neutral-200">
+                  <label className="text-xs font-bold text-neutral-900 block mb-1">Team Size (Calculated)</label>
+                  <p className="text-xl font-bold text-[#5557D9] py-1 font-mono">
+                    {categories.reduce((acc, c) => acc + (c.countPerTeam || 1), 0)} members / team
+                  </p>
+                  <p className="text-[11px] text-neutral-400 mt-1">Sum of category quotas defined in Step 2.</p>
                 </div>
               </div>
 
-              <div className="p-4 rounded-xl bg-canvas border border-border/80 space-y-2">
-                <span className="text-xs font-bold text-primaryText block">Composition Formula Preview:</span>
-                <div className="flex flex-wrap gap-2">
-                  {categories.map((c) => (
-                    <span
-                      key={c.id}
-                      className="px-2.5 py-1 rounded-lg bg-white border border-border text-[11px] font-semibold text-primaryText shadow-2xs"
-                    >
-                      {c.countPerTeam}× {c.name} ({c.roleTag})
-                    </span>
-                  ))}
-                </div>
-              </div>
-
-              <div className="space-y-2 pt-2">
-                <label className="flex items-center gap-2 text-xs text-primaryText font-medium cursor-pointer">
+              <div className="p-4 rounded-xl bg-neutral-50 border border-neutral-200 space-y-2">
+                <label className="flex items-center gap-2 cursor-pointer text-xs text-neutral-700">
                   <input
                     type="checkbox"
                     checked={teamRules.uniqueMentor}
                     onChange={(e) => setTeamRules({ ...teamRules, uniqueMentor: e.target.checked })}
-                    className="rounded text-accent focus:ring-0"
+                    className="rounded border-neutral-300 text-[#5557D9] focus:ring-[#5557D9]"
                   />
-                  <span>Enforce unique mentors (strictly one team per mentor, non-shared)</span>
-                </label>
-
-                <label className="flex items-center gap-2 text-xs text-primaryText font-medium cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={teamRules.allowParticipantReuse}
-                    onChange={(e) => setTeamRules({ ...teamRules, allowParticipantReuse: e.target.checked })}
-                    className="rounded text-accent focus:ring-0"
-                  />
-                  <span>Allow participant reuse across multiple teams (default: disabled)</span>
+                  <span>
+                    <strong className="text-neutral-900">Enforce Unique Mentor Constraint:</strong> Never allow the same mentor to be assigned to multiple teams.
+                  </span>
                 </label>
               </div>
             </div>
           )}
 
-          {/* STEP 5: Review & Submit */}
+          {/* STEP 5: Review & Finalize */}
           {currentStep === 5 && (
             <div className="space-y-4">
-              <div className="p-4 rounded-xl bg-slate-50 border border-border space-y-3">
-                <div className="flex items-center justify-between pb-2 border-b border-border/80">
-                  <span className="text-xs font-bold text-secondaryText">Event Name:</span>
-                  <span className="text-xs font-bold text-primaryText">{basicInfo.name}</span>
+              <div className="p-4 rounded-xl bg-neutral-50 border border-neutral-200 space-y-3">
+                <div className="flex items-center justify-between pb-2 border-b border-neutral-200">
+                  <span className="text-xs font-bold text-neutral-500">Event Name:</span>
+                  <span className="text-sm font-bold text-neutral-900">{basicInfo.name}</span>
                 </div>
 
-                <div className="flex items-center justify-between pb-2 border-b border-border/80">
-                  <span className="text-xs font-bold text-secondaryText">Event Type:</span>
-                  <span className="text-xs font-semibold text-primaryText">{basicInfo.eventType}</span>
-                </div>
-
-                <div className="flex items-center justify-between pb-2 border-b border-border/80">
-                  <span className="text-xs font-bold text-secondaryText">Dates & Venue:</span>
-                  <span className="text-xs text-primaryText">
-                    {basicInfo.startDate || 'TBD'} to {basicInfo.endDate || 'TBD'} · {basicInfo.venue}
+                <div className="flex items-center justify-between pb-2 border-b border-neutral-200">
+                  <span className="text-xs font-bold text-neutral-500">Event Type:</span>
+                  <span className="text-xs font-semibold px-2 py-0.5 rounded bg-indigo-50 text-[#5557D9] border border-indigo-100">
+                    {basicInfo.eventType}
                   </span>
                 </div>
 
-                <div className="flex items-center justify-between pb-2 border-b border-border/80">
-                  <span className="text-xs font-bold text-secondaryText">Target Teams:</span>
-                  <span className="text-xs font-mono font-bold text-primaryText">
+                <div className="flex items-center justify-between pb-2 border-b border-neutral-200">
+                  <span className="text-xs font-bold text-neutral-500">Schedule:</span>
+                  <span className="text-xs text-neutral-700 font-mono">
+                    {basicInfo.startDate || 'TBD'} to {basicInfo.endDate || 'TBD'}
+                  </span>
+                </div>
+
+                <div className="flex items-center justify-between pb-2 border-b border-neutral-200">
+                  <span className="text-xs font-bold text-neutral-500">Target Teams:</span>
+                  <span className="text-xs font-mono font-bold text-neutral-900">
                     {teamRules.requestedTeams} teams ({categories.reduce((acc, c) => acc + (c.countPerTeam || 1), 0)} members each)
                   </span>
                 </div>
 
                 <div>
-                  <span className="text-xs font-bold text-secondaryText block mb-1">Defined Categories:</span>
+                  <span className="text-xs font-bold text-neutral-500 block mb-1">Defined Categories:</span>
                   <div className="flex flex-wrap gap-1.5">
                     {categories.map((c) => (
-                      <span key={c.id} className="text-[10px] font-mono px-2 py-0.5 rounded bg-white border border-border">
-                        {c.countPerTeam}× {c.name}
+                      <span key={c.id} className="text-[11px] font-mono px-2 py-0.5 rounded-md bg-white border border-neutral-200 text-neutral-800">
+                        {c.countPerTeam}× {c.name} ({c.roleTag})
                       </span>
                     ))}
                   </div>
                 </div>
               </div>
 
-              <p className="text-xs text-secondaryText leading-relaxed">
+              <p className="text-xs text-neutral-500 leading-relaxed">
                 Clicking <strong>&quot;Create & Launch Event&quot;</strong> will persist this configuration to MongoDB Atlas and make it immediately active in your administrative workspace.
               </p>
             </div>
@@ -573,47 +579,59 @@ export default function EventWizardModal({ isOpen, onClose, onSuccess }) {
         </div>
 
         {/* Footer Actions */}
-        <div className="px-6 py-4 border-t border-border/80 flex items-center justify-between bg-canvas/40">
-          {currentStep > 1 ? (
-            <button
-              type="button"
-              onClick={handleBack}
-              disabled={submitting}
-              className="px-4 py-2 rounded-xl border border-border text-xs font-semibold text-secondaryText hover:text-primaryText hover:bg-slate-50 flex items-center gap-1 cursor-pointer"
-            >
-              <ChevronLeft size={14} />
-              <span>Back</span>
-            </button>
-          ) : (
-            <div />
-          )}
+        <div className="px-6 py-4 border-t border-neutral-200 flex items-center justify-between bg-neutral-50/80">
+          <div>
+            {currentStep > 1 ? (
+              <button
+                type="button"
+                onClick={handleBack}
+                disabled={submitting}
+                className="px-4 py-2 rounded-xl border border-neutral-200 text-xs font-semibold text-neutral-700 hover:text-neutral-900 hover:bg-neutral-100 flex items-center gap-1 cursor-pointer transition-colors"
+              >
+                <ChevronLeft size={14} />
+                <span>Back</span>
+              </button>
+            ) : (
+              <button
+                type="button"
+                onClick={handleQuickCreate}
+                disabled={submitting || !basicInfo.name.trim()}
+                className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold flex items-center gap-1.5 shadow-sm cursor-pointer disabled:opacity-40 transition-colors"
+              >
+                <Sparkles size={14} />
+                <span>Quick Create</span>
+              </button>
+            )}
+          </div>
 
-          {currentStep < 5 ? (
-            <button
-              type="button"
-              onClick={handleNext}
-              className="px-5 py-2 rounded-xl bg-accent hover:bg-accent-hover text-white text-xs font-bold flex items-center gap-1 shadow-xs cursor-pointer"
-            >
-              <span>Continue</span>
-              <ChevronRight size={14} />
-            </button>
-          ) : (
-            <button
-              type="button"
-              onClick={handleSubmit}
-              disabled={submitting}
-              className="px-6 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold flex items-center gap-1.5 shadow-sm cursor-pointer disabled:opacity-50"
-            >
-              {submitting ? (
-                <span>Creating Event...</span>
-              ) : (
-                <>
-                  <Check size={14} />
-                  <span>Create & Launch Event</span>
-                </>
-              )}
-            </button>
-          )}
+          <div className="flex items-center gap-2">
+            {currentStep < 5 ? (
+              <button
+                type="button"
+                onClick={handleNext}
+                className="px-5 py-2 rounded-xl bg-[#5557D9] hover:bg-indigo-700 text-white text-xs font-bold flex items-center gap-1 shadow-sm cursor-pointer transition-colors"
+              >
+                <span>Continue</span>
+                <ChevronRight size={14} />
+              </button>
+            ) : (
+              <button
+                type="button"
+                onClick={handleSubmit}
+                disabled={submitting}
+                className="px-6 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold flex items-center gap-1.5 shadow-sm cursor-pointer disabled:opacity-50 transition-colors"
+              >
+                {submitting ? (
+                  <span>Creating Event...</span>
+                ) : (
+                  <>
+                    <Check size={14} />
+                    <span>Create & Launch Event</span>
+                  </>
+                )}
+              </button>
+            )}
+          </div>
         </div>
       </div>
     </div>

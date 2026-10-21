@@ -435,6 +435,42 @@ export async function deleteEvent(eventId, adminEmail = 'Admin') {
 }
 
 /**
+ * Bulk deletes multiple events safely.
+ */
+export async function bulkDeleteEvents(eventIds = [], adminEmail = 'Admin') {
+  if (!Array.isArray(eventIds) || eventIds.length === 0) {
+    throw new Error('An array of event IDs is required.');
+  }
+
+  await connectToDatabase();
+  const EventModel = getEventModel();
+
+  // Exclude default event from bulk deletion
+  const validIds = eventIds.filter((id) => id !== 'evt_hackathon_2027');
+  if (validIds.length === 0) {
+    return { success: true, count: 0, message: 'No deletable events specified.' };
+  }
+
+  const result = await EventModel.deleteMany({ eventId: { $in: validIds } });
+
+  // Also clean up any orphan event draws
+  try {
+    const db = mongoose.connection.db;
+    if (db) {
+      await db.collection('eventdraws').deleteMany({ eventId: { $in: validIds } });
+    }
+  } catch {
+    // Ignore secondary draw cleanup error
+  }
+
+  return {
+    success: true,
+    count: result.deletedCount,
+    message: `Successfully deleted ${result.deletedCount} event(s).`
+  };
+}
+
+/**
  * Participant Management within an Event.
  */
 export async function addParticipant(eventId, participantData, adminEmail = 'Admin') {
@@ -596,6 +632,74 @@ export async function deleteParticipant(eventId, participantId, adminEmail = 'Ad
 
   await event.save();
   return { success: true };
+}
+
+/**
+  * Bulk deletes participants by their IDs from an event.
+  */
+export async function bulkDeleteParticipants(eventId, participantIds = [], adminEmail = 'Admin') {
+  if (!Array.isArray(participantIds) || participantIds.length === 0) {
+    throw new Error('An array of participant IDs is required.');
+  }
+
+  await connectToDatabase();
+  const EventModel = getEventModel();
+
+  const event = await EventModel.findOne({ eventId });
+  if (!event) throw new Error('Event not found');
+  if (event.status === EVENT_STATUS.ARCHIVED) {
+    throw new Error('Cannot delete participants from an ARCHIVED event.');
+  }
+
+  const idSet = new Set(participantIds.map(String));
+  const initialCount = event.participants.length;
+  event.participants = event.participants.filter((p) => !idSet.has(p.id) && !idSet.has(p.participantId));
+  const deletedCount = initialCount - event.participants.length;
+
+  event.auditLogs.push({
+    action: 'PARTICIPANTS_BULK_DELETED',
+    details: `Bulk deleted ${deletedCount} participants`,
+    userEmail: adminEmail
+  });
+
+  await event.save();
+  return { success: true, count: deletedCount, message: `Successfully deleted ${deletedCount} participant(s).` };
+}
+
+/**
+ * Bulk updates status for participants in an event.
+ */
+export async function bulkUpdateParticipantsStatus(eventId, participantIds = [], newStatus = 'ACTIVE', adminEmail = 'Admin') {
+  if (!Array.isArray(participantIds) || participantIds.length === 0) {
+    throw new Error('An array of participant IDs is required.');
+  }
+
+  await connectToDatabase();
+  const EventModel = getEventModel();
+
+  const event = await EventModel.findOne({ eventId });
+  if (!event) throw new Error('Event not found');
+  if (event.status === EVENT_STATUS.ARCHIVED) {
+    throw new Error('Cannot update participants in an ARCHIVED event.');
+  }
+
+  const idSet = new Set(participantIds.map(String));
+  let updatedCount = 0;
+  for (const part of event.participants) {
+    if (idSet.has(part.id) || idSet.has(part.participantId)) {
+      part.status = newStatus;
+      updatedCount++;
+    }
+  }
+
+  event.auditLogs.push({
+    action: 'PARTICIPANTS_BULK_UPDATED',
+    details: `Bulk updated status of ${updatedCount} participants to ${newStatus}`,
+    userEmail: adminEmail
+  });
+
+  await event.save();
+  return { success: true, count: updatedCount, message: `Updated ${updatedCount} participant(s) to ${newStatus}.` };
 }
 
 export async function bulkImportParticipants(eventId, participantsList, adminEmail = 'Admin') {

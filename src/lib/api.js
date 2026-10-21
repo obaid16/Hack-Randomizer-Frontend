@@ -288,6 +288,11 @@ export const eventsApi = {
     request(`/api/events/${id}`, {
       method: 'DELETE'
     }),
+  bulkDelete: (eventIds) =>
+    request('/api/events', {
+      method: 'DELETE',
+      body: JSON.stringify({ eventIds })
+    }),
   duplicate: (id, data = {}) =>
     request(`/api/events/${id}/duplicate`, {
       method: 'POST',
@@ -307,6 +312,16 @@ export const eventsApi = {
   deleteParticipant: (id, partId) =>
     request(`/api/events/${id}/participants/${partId}`, {
       method: 'DELETE'
+    }),
+  bulkDeleteParticipants: (id, participantIds) =>
+    request(`/api/events/${id}/participants`, {
+      method: 'DELETE',
+      body: JSON.stringify({ participantIds })
+    }),
+  bulkUpdateParticipantsStatus: (id, participantIds, status) =>
+    request(`/api/events/${id}/participants`, {
+      method: 'PATCH',
+      body: JSON.stringify({ participantIds, status })
     }),
   bulkImport: (id, participants) =>
     request(`/api/events/${id}/participants/bulk`, {

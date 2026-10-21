@@ -150,17 +150,6 @@ export default function AdminSidebar({
                   {events.length}
                 </span>
               </button>
-
-              <button
-                type="button"
-                onClick={() => handleNavClick('templates')}
-                className={navItemClass('templates')}
-              >
-                <span className="flex items-center gap-2.5">
-                  <Layers size={15} />
-                  <span>Event Templates</span>
-                </span>
-              </button>
             </div>
           </div>
 
